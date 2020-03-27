@@ -162,13 +162,13 @@ def comp_a(dert__, fga, fc3):
 def compute_a__(dert__, fga):
     # dert = i, g, dy, dx, m
     if fga:
-        g, dy, dx = dert__[1:4]
-        a__ = [dy, dx] / g
+        ga, day, dax = dert__[:3]
+        a__ = [day, dax] / ga
 
     # if dert = g, gg, gdy, gdx, gm, iga, iday, idax
     else:
-        ga, day, dax = dert__[:3]
-        a__ = [day, dax] / ga
+        g, dy, dx = dert__[1:4]
+        a__ = [dy, dx] / g
 
     return a__
 
