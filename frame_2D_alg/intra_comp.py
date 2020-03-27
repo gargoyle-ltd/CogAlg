@@ -116,7 +116,7 @@ def comp_r(dert__, fig):
 
 
 
-def comp_a(dert__, fga, fc3):
+def comp_a(dert__, fga):
     """
     Compute vector representation of gradient angle.
     It is done by normalizing the vector (dy, dx).
