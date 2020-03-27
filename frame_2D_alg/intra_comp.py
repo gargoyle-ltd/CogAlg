@@ -60,13 +60,15 @@ def comp_g(dert__, odd):
     g = np.hypot(day, dax)
 
     #2x2 cross-comp
-    g_1 = g__[:-1, :-1]
-    g_2 = g__[:-1, 1:]
-    g_3 = g__[1:, 1:]
-    g_4 = g__[1:, :-1]
+    g_1 = g[:-1, :-1]
+    g_2 = g[:-1, 1:]
+    g_3 = g[1:, 1:]
+    g_4 = g[1:, :-1]
+
+    #TODO count gg
 
 
-    # match?
+    # TODO match?
     gm = ma.array(np.ones())
 
     # pack gdert
