@@ -67,7 +67,8 @@ def comp_g(dert__, odd):
     gg__ = ma.stack(ga__ - _g * dax)
 
     # match = min(g, _g*cos(da))
-    # what type og data should be match?
+    
+    # what type of data should be match? is it an array of min value in every comparison, so to compute it in loop?
     gm__ = ma.min(ga__, _g * dax)
 
     # pack gdert
