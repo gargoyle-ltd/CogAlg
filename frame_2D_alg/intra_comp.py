@@ -19,58 +19,61 @@ X_COEFFS = [
 # -----------------------------------------------------------------------------
 # Functions
 
+
 def comp_g(dert__, odd):
     """
-    cross-comp of g or ga, in 2x2 kernels unless root fork is comp_r: odd=TRUE
-    or odd: sparse 3x3, is also effectively 2x2 input, recombined from one-line-distant lines?
+        Cross-comp of g or ga in 2x2 kernels
+        Parameters
+        ----------
+        dert__ : array-like, each dert = (i, g, dy, dx, da0, da1, da2, da3)
+        Returns
+        -------
+        gdert__ : masked_array
+            Output dert = (g, gg, gdy, gdx, gm, ga, day, dax).
+        Examples
+        --------
 
-     dert = i, g, dy, dx
-     adert = ga, day, dax
-     odd = bool  # initially FALSE, set to TRUE for comp_a and comp_g called from comp_r fork
-    # comparand = dert[1]
-    <<< gdert = g, gg, gdy, gdx, gm, ga, day, dax
-    """
+        'specific output'
+        Notes
+        -----
+        Comparand is dert[1]
+        """
 
-    # if adert = ga, day, dax
-    if odd:
-        ga, day, dax = dert__[:3]
-        a__ = [day, dax] / ga
+    # What dert we have if odd?
+    g__, dy__, dx__ = dert__[1:4]
+    dat__ = dert__[-1]              # tuples of four da s, computed in prior comp_a
+    a__  = [dy__, dx__] / g__
 
-    # if dert = i, g, dy, dx
-    else:
-        g, dy, dx = dert__[1:4]
-        a__ = [dy, dx] / g
+    # please check, this is my draft, almost certainly wrong:
+    day = sum([dat__[i][0] * Y_COEFFS[0][i] for i in range(len(dat__), 2)])
+    dax = sum([dat__[i][1] * X_COEFFS[0][i] for i in range(len(dat__), 2)])
 
-    a__1 = a__[:, :-1, :-1]                         # top left
-    a__2 = a__[:, :-1, 1:]                          # top right
-    a__3 = a__[:, 1:, 1:]                           # bottom right
-    a__4 = a__[:, 1:, :-1]                          # bottom left
-    a_central = ((a__1 + a__2 + a__3 + a__4) / 4)   # central
+    _g = np.hypot(day, dax)
 
-    # angle difference
-    da__ = np.stack((angle_diff(a_central, a__1),
-                     angle_diff(a_central, a__2),
-                     angle_diff(a_central, a__3),
-                     angle_diff(a_central, a__4)))
+    # 2x2 cross-comp DRAFT:
+    a0__ = a__[:, :-1, :-1]
+    a1__ = a__[:, :-1, 1:]
+    a2__ = a__[:, 1:, 1:]
+    a3__ = a__[:, 1:, :-1]
 
-    day = sum([da__[i][0] * Y_COEFFS[0][i] for i in range(len(da__))])
-    dax = sum([da__[i][1] * X_COEFFS[0][i] for i in range(len(da__))])
+    gdy__ = (Y_COEFFS[0][0] * angle_diff(a0__, a2__) +
+            Y_COEFFS[0][1] * angle_diff(a1__, a3__))
 
-    # calculating magnitude
-    g = np.hypot(day, dax)
+    gdx__ = (X_COEFFS[0][0] * angle_diff(a0__, a2__) +
+             X_COEFFS[0][1] * angle_diff(a1__, a3__))
 
-    #2x2 cross-comp
-    g_1 = g__[:-1, :-1]
-    g_2 = g__[:-1, 1:]
-    g_3 = g__[1:, 1:]
-    g_4 = g__[1:, :-1]
+    ga__ = np.hypot(np.arctan2(*gdy__), np.arctan2(*gdx__))
 
+    # compute gg from dg s = g - _g*cos(da)
+    gg__ = ma.stack(ga__ - _g * dax)
 
-    # match?
-    gm = ma.array(np.ones())
+    # match = min(g, _g*cos(da))
+    
+    # what type of data should be match? is it an array of min value in every comparison, so to compute it in loop?
+    gm__ = ma.min(ga__, _g * dax)
 
     # pack gdert
-    gdert = ma.stack(g, gg, gdy, gdx, gm, day, dax)
+    gdert = ma.stack(g__, gg__, gdy__, gdx__, gm__, day, dax)
 
     return gdert
 
@@ -109,12 +112,91 @@ def comp_r(dert__, fig):
     # comparand = dert[0]
     """
 
-    pass
+    # input is gdert (g,  gg, gdy, gdx, gm, iga, iday, idax)
+    # input is dert  (i,  g,  dy,  dx,  m)  or
+    # input is rdert (ir, gr, dry, drx, mr)
+    i__, g__, dy__, dx__, m__ = dert__[0:5]
+
+    # get sparsed value
+    ri__ = i__[1::2, 1::2]
+    rg__ = g__[1::2, 1::2]
+    rdy__ = dy__[1::2, 1::2]
+    rdx__ = dx__[1::2, 1::2]
+    rm__ = m__[1::2, 1::2]
+
+    # get each direction
+    ri__topleft = ri__[:-2, :-2]
+    ri__top = ri__[:-2, 1:-1]
+    ri__topright = ri__[:-2, 2:]
+    ri__right = ri__[1:-1, 2:]
+    ri__bottomright = ri__[2:, 2:]
+    ri__bottom = ri__[2:, 1:-1]
+    ri__bottomleft = ri__[2:, :-2]
+    ri__left = ri__[1:-1, :-2]
+
+    if fig:  # input is g
+        # OUTDATED:
+
+        # compute diagonal differences for g in 3x3 kernel
+        drg__ = np.stack((ri__topleft - ri__bottomright,
+                          ri__top - ri__bottom,
+                          ri__topright - ri__bottomleft,
+                          ri__right - ri__left))
+
+        # compute a from the range dy,dx and g
+        a__ = [rdy__, rdx__] / rg__
+
+        # angles per direction:
+        a__topleft = a__[:, :-2, :-2]
+        a__top = a__[:, :-2, 1:-1]
+        a__topright = a__[:, :-2, 2:]
+        a__right = a__[:, 1:-1, 2:]
+        a__bottomright = a__[:, 2:, 2:]
+        a__bottom = a__[:, 2:, 1:-1]
+        a__bottomleft = a__[:, 2:, :-2]
+        a__left = a__[:, 1:-1, :-2]
+
+        # compute opposing diagonals difference for a in 3x3 kernel
+        dra__ = np.stack((angle_diff(a__topleft, a__bottomright),
+                          angle_diff(a__top, a__bottom),
+                          angle_diff(a__topright, a__bottomleft),
+                          angle_diff(a__right, a__left)))
+
+        # g difference  = g - g * cos(da) at each opposing diagonals
+        dri__ = np.stack((drg__[0] - drg__[0] * dra__[0][1],
+                          drg__[1] - drg__[1] * dra__[1][1],
+                          drg__[2] - drg__[2] * dra__[2][1],
+                          drg__[3] - drg__[3] * dra__[3][1]))
+
+    else:  # input is pixel
+
+        #   i difference of each opossing diagonals
+        dri__ = np.stack((ri__topleft - ri__bottomright,
+                          ri__top - ri__bottom,
+                          ri__topright - ri__bottomleft,
+                          ri__right - ri__left))
+
+    dri__ = np.rollaxis(dri__, 0, 3)
+
+    # compute dry and drx
+    dry__ = (dri__ * Y_COEFFS[0][0:4]).sum(axis=-1)
+    drx__ = (dri__ * X_COEFFS[0][0:4]).sum(axis=-1)
+
+    # compute gradient magnitudes
+    drg__ = ma.hypot(dry__, drx__)
+
+    # pending m computation
+    drm = []
+
+    # rdert
+    rdert = dri__, drg__, dry__, drx__, drm
+
+    return rdert
 
 
 
 
-def comp_a(dert__, fga, fc3):
+def comp_a(dert__, fga):
     """
     Compute vector representation of gradient angle.
     It is done by normalizing the vector (dy, dx).
@@ -130,45 +212,50 @@ def comp_a(dert__, fga, fc3):
     <<< adert = ga, day, dax
     """
 
-    # computing a__ depending on flag
-    a__ = compute_a__(dert__, fga)
+    # input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
+    i__, g__, dy__, dx__, m__= dert__[0:4]
 
-    a__1 = a__[:, :-1, :-1]                         # top left
-    a__2 = a__[:, :-1, 1:]                          # top right
-    a__3 = a__[:, 1:, 1:]                           # bottom right
-    a__4 = a__[:, 1:, :-1]                          # bottom left
-    a_central = ((a__1 + a__2 + a__3 + a__4) / 4)   # central
+    if fga:  # if input is adert
 
-    # angle difference
-    da__ = np.stack((angle_diff(a_central, a__1),
-                     angle_diff(a_central, a__2),
-                     angle_diff(a_central, a__3),
-                     angle_diff(a_central, a__4)))
+        ga__, day__, dax__ = dert__[5:8]
+        a__ = [day__, dax__] / ga__  # similar to calc_a
 
-    # multiply on coefficients
-    day = sum([da__[i][0] * Y_COEFFS[0][i] for i in range(len(da__))])
-    dax = sum([da__[i][1] * X_COEFFS[0][i] for i in range(len(da__))])
-
-    # gradient magnitude
-    ga__ = np.hypot(np.arctan(day), np.arctan(dax))
-
-    adert = ma.stack((ga__, day, dax))
-
-    return adert
-
-
-def compute_a__(dert__, fga):
-    # dert = i, g, dy, dx, m
-    if fga:
-        g, dy, dx = dert__[1:4]
-        a__ = [dy, dx] / g
-
-    # if dert = g, gg, gdy, gdx, gm, iga, iday, idax
     else:
-        ga, day, dax = dert__[:3]
-        a__ = [day, dax] / ga
+        a__ = [dy__, dx__] / g__  # similar to calc_a
 
-    return a__
+
+    if isinstance(a__, ma.masked_array):
+        a__.data[a__.mask] = np.nan
+        a__.mask = ma.nomask
+
+    # each shifted a in 2x2 kernel
+    a__topleft = a__[:, :-1, :-1]
+    a__topright = a__[:, :-1, 1:]
+    a__bottomright = a__[:, 1:, 1:]
+    a__bottomleft = a__[:, 1:, :-1]
+
+    # get angle difference of each direction
+    da__ = np.stack((angle_diff(a__topleft, a__bottomright),
+                     angle_diff(a__bottomleft, a__topright),
+                     angle_diff(a__topright, a__bottomleft)))
+
+    day__ = (
+            Y_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
+            Y_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
+    )
+    dax__ = (
+            X_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
+            X_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
+    )
+    # compute gradient magnitudes (how fast angles are changing)
+
+    ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
+
+    # change adert to tuple as ga__,day__,dax__ would have different dimension compared to inputs
+    adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__
+
+    return adert__
+
 
 
 def angle_diff(a2, a1):
@@ -183,12 +270,6 @@ def angle_diff(a2, a1):
     cos = (sin_1 * cos_1) + (sin_2 * cos_2)
 
     return ma.array([sin, cos])
-
-
-def sparse_dert(dert__):
-
-    dert = dert__[:, 1::2, 1::2]
-    return dert
 
 # ----------------------------------------------------------------------
 # -----------------------------------------------------------------------------
