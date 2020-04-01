@@ -1,4 +1,3 @@
-
 import numpy as np
 import numpy.ma as ma
 
@@ -39,44 +38,38 @@ def comp_g(dert__, odd):
         Comparand is dert[1]
         """
 
-    # What dert we have if odd?
-    g__, dy__, dx__ = dert__[1:4]
-    dat__ = dert__[-1]              # tuples of four da s, computed in prior comp_a
-    a__  = [dy__, dx__] / g__
+    def comp_g_draft(dert__):
+        """
+      Cross-comp of g or ga in 2x2 kernels
+    ----------
+    input dert = (i, g, dy, dx, ga, day, dax, da0, da1)
+    output dert = (g, gg, dgy, dgx, gm, ga, day, dax)
+    """
+    g__, da0__, da1__ = dert__[1, -2, -1]  # input
 
-    # please check, this is my draft, almost certainly wrong:
-    day = sum([dat__[i][0] * Y_COEFFS[0][i] for i in range(len(dat__), 2)])
-    dax = sum([dat__[i][1] * X_COEFFS[0][i] for i in range(len(dat__), 2)])
+    topleft__ = g__[:-1, :-1]
+    topright__ = g__[:-1, 1:]
+    botleft__ = g__[1:, :-1]
+    botright__ = g__[1:, 1:]
 
-    _g = np.hypot(day, dax)
+    dgy__ = ((botleft__ + botright__) - (topleft__ * da0__[1] + topright__ * da1__[1])) * 0.5
+    # diagonal from left
+    dgx__ = ((topright__ + botright__) - (topleft__ * da0__[1] + botleft__ * da1__[1])) * 0.5
+    # diagonal from right
+    gg__ = np.hypot(dgy__, dgx__)
+    # gradient of gradient
 
-    # 2x2 cross-comp DRAFT:
-    a0__ = a__[:, :-1, :-1]
-    a1__ = a__[:, :-1, 1:]
-    a2__ = a__[:, 1:, 1:]
-    a3__ = a__[:, 1:, :-1]
+    gm0__ = min(botleft__, topright__ * da0__[1])  # g match = min(g, _g*cos(da))
+    gm1__ = min(botright__, topleft__ * da1__[1])
+    gm__ = gm0__ + gm1__
 
-    gdy__ = (Y_COEFFS[0][0] * angle_diff(a0__, a2__) +
-            Y_COEFFS[0][1] * angle_diff(a1__, a3__))
+    gdert = ma.stack(g__, gg__, dgy__, dgx__, gm__, ga__=dert__[4], day_=dert__[5], dax=dert__[6])
 
-    gdx__ = (X_COEFFS[0][0] * angle_diff(a0__, a2__) +
-             X_COEFFS[0][1] * angle_diff(a1__, a3__))
-
-    ga__ = np.hypot(np.arctan2(*gdy__), np.arctan2(*gdx__))
-
-    # compute gg from dg s = g - _g*cos(da)
-    gg__ = ma.stack(ga__ - _g * dax)
-
-    # match = min(g, _g*cos(da))
-    
-    # what type of data should be match? is it an array of min value in every comparison, so to compute it in loop?
-    gm__ = ma.min(ga__, _g * dax)
-
-    # pack gdert
-    gdert = ma.stack(g__, gg__, gdy__, gdx__, gm__, day, dax)
-
+    '''
+    next comp_rg will use g, dgy, dgx
+    next comp_agg will use ga, day, dax
+    '''
     return gdert
-
 
 
 def comp_r(dert__, fig):
@@ -168,30 +161,58 @@ def comp_r(dert__, fig):
                           drg__[2] - drg__[2] * dra__[2][1],
                           drg__[3] - drg__[3] * dra__[3][1]))
 
-    else:  # input is pixel
+    else:
+        a__ = []
 
-        #   i difference of each opossing diagonals
-        dri__ = np.stack((ri__topleft - ri__bottomright,
-                          ri__top - ri__bottom,
-                          ri__topright - ri__bottomleft,
-                          ri__right - ri__left))
+        # angles per direction:
+        a__topleft = a__[:, :-2, :-2]
+        a__top = a__[:, :-2, 1:-1]
+        a__topright = a__[:, :-2, 2:]
+        a__right = a__[:, 1:-1, 2:]
+        a__bottomright = a__[:, 2:, 2:]
+        a__bottom = a__[:, 2:, 1:-1]
+        a__bottomleft = a__[:, 2:, :-2]
+        a__left = a__[:, 1:-1, :-2]
+
+        # compute opposing diagonals difference for a in 3x3 kernel
+        dra__ = np.stack((angle_diff(a__topleft, a__bottomright),
+                          angle_diff(a__top, a__bottom),
+                          angle_diff(a__topright, a__bottomleft),
+                          angle_diff(a__right, a__left)))
+
+        # g difference  = g - g * cos(da) at each opposing diagonals
+        dri__ = np.stack((drg__[0] - drg__[0] * dra__[0][1],
+                          drg__[1] - drg__[1] * dra__[1][1],
+                          drg__[2] - drg__[2] * dra__[2][1],
+                          drg__[3] - drg__[3] * dra__[3][1]))
+
+    else:
+
+    #  i difference of each opossing diagonals
+    dri__ = np.stack((ri__topleft - ri__bottomright,
+                      ri__top - ri__bottom,
+                      ri__topright - ri__bottomleft,
+                      ri__right - ri__left))
+
 
     dri__ = np.rollaxis(dri__, 0, 3)
-
+    
     # compute dry and drx
     dry__ = (dri__ * Y_COEFFS[0][0:4]).sum(axis=-1)
     drx__ = (dri__ * X_COEFFS[0][0:4]).sum(axis=-1)
-
+    
     # compute gradient magnitudes
     drg__ = ma.hypot(dry__, drx__)
-
+    
     # pending m computation
     drm = []
-
+    
     # rdert
     rdert = dri__, drg__, dry__, drx__, drm
-
+    
     return rdert
+
+
 
 
 
@@ -213,7 +234,7 @@ def comp_a(dert__, fga):
     """
 
     # input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
-    i__, g__, dy__, dx__, m__= dert__[0:4]
+    i__, g__, dy__, dx__, m__ = dert__[0:4]
 
     if fga:  # if input is adert
 
@@ -223,6 +244,40 @@ def comp_a(dert__, fga):
     else:
         a__ = [dy__, dx__] / g__  # similar to calc_a
 
+    if isinstance(a__, ma.masked_array):
+        a__.data[a__.mask] = np.nan
+        a__.mask = ma.nomask
+
+    # each shifted a in 2x2 kernel
+    a__topleft = a__[:, :-1, :-1]
+    a__topright = a__[:, :-1, 1:]
+    a__bottomright = a__[:, 1:, 1:]
+    a__bottomleft = a__[:, 1:, :-1]
+
+    # get angle difference of each direction
+    da__ = np.stack((angle_diff(a__topleft, a__bottomright),
+                     angle_diff(a__bottomleft, a__topright),
+                     angle_diff(a__topright, a__bottomleft)))
+
+    day__ = (
+            Y_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
+            Y_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
+    )
+    dax__ = (
+            X_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
+            X_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
+    )
+    # compute gradient magnitudes (how fast angles are changing)
+
+    ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
+
+    if fga:  # if input is adert
+
+        ga__, day__, dax__ = dert__[5:8]
+        a__ = [day__, dax__] / ga__  # similar to calc_a
+
+    else:
+        a__ = [dy__, dx__] / g__  # similar to calc_a
 
     if isinstance(a__, ma.masked_array):
         a__.data[a__.mask] = np.nan
@@ -255,7 +310,6 @@ def comp_a(dert__, fga):
     adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__
 
     return adert__
-
 
 
 def angle_diff(a2, a1):
