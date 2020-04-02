@@ -268,7 +268,7 @@ def comp_a(dert__, fga):
     ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
 
     # change adert to tuple as ga__,day__,dax__ would have different dimension compared to inputs
-    adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__, a__directions
+    adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__, [da__[0][1], da__[1][1]]
 
     return adert__
 
