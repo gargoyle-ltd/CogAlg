@@ -38,37 +38,30 @@ def comp_g(dert__, odd):
         Comparand is dert[1]
         """
 
-    def comp_g_draft(dert__):
-        """
-      Cross-comp of g or ga in 2x2 kernels
-    ----------
-    input dert = (i, g, dy, dx, ga, day, dax, da0, da1)
-    output dert = (g, gg, dgy, dgx, gm, ga, day, dax)
-    """
-    g__, da0__, da1__ = dert__[1, -2, -1]  # input
+    g__, a__directions = dert__[1], dert__[-1]  # input
 
-    topleft__ = g__[:-1, :-1]
-    topright__ = g__[:-1, 1:]
-    botleft__ = g__[1:, :-1]
-    botright__ = g__[1:, 1:]
+    g__topleft = g__[:-1, :-1]
+    g__topright = g__[:-1, 1:]
+    g__bottomleft = g__[1:, :-1]
+    g__bottomright = g__[1:, 1:]
 
-    dgy__ = ((botleft__ + botright__) - (topleft__ * da0__[1] + topright__ * da1__[1])) * 0.5
-    # diagonal from left
-    dgx__ = ((topright__ + botright__) - (topleft__ * da0__[1] + botleft__ * da1__[1])) * 0.5
-    # diagonal from right
-    gg__ = np.hypot(dgy__, dgx__)
-    # gradient of gradient
+    # dy of g (angle is in the form of [sin(angle), cos (angle)], no need to use cos(angle))
+    dgy__ = ((g__bottomleft + g__bottomright) - (
+                g__topleft * (a__directions[0][1]) + g__topright * (a__directions[1][1]))) * 0.5
 
-    gm0__ = min(botleft__, topright__ * da0__[1])  # g match = min(g, _g*cos(da))
-    gm1__ = min(botright__, topleft__ * da1__[1])
+    # dx of g
+    dgx__ = ((g__topright + g__bottomright) - (
+                g__topleft * (a__directions[0][1]) + g__bottomleft * (a__directions[3][1]))) * 0.5
+
+    gg__ = np.hypot(dgy__, dgx__)  # gradient of gradient
+
+    gm0__ = np.minimum(g__bottomleft, (g__topright * (a__directions[1])))  # g match = min(g, _g*cos(da))
+    gm1__ = np.minimum(g__bottomright, (g__topleft * (a__directions[0])))
     gm__ = gm0__ + gm1__
 
-    gdert = ma.stack(g__, gg__, dgy__, dgx__, gm__, ga__=dert__[4], day_=dert__[5], dax=dert__[6])
+    #    ga__=dert__[5], day_=dert__[6], dax=dert__[7]
+    gdert = g__, gg__, dgy__, dgx__, gm__, dert__[5], dert__[6], dert__[7]
 
-    '''
-    next comp_rg will use g, dgy, dgx
-    next comp_agg will use ga, day, dax
-    '''
     return gdert
 
 
@@ -108,7 +101,7 @@ def comp_r(dert__, fig):
     # input is gdert (g,  gg, gdy, gdx, gm, iga, iday, idax)
     # input is dert  (i,  g,  dy,  dx,  m)  or
     # input is rdert (ir, gr, dry, drx, mr)
-    i__, g__, dy__, dx__, m__ = dert__[0:5]
+    '''i__, g__, dy__, dx__, m__ = dert__[0:5]
 
     # get sparsed value
     ri__ = i__[1::2, 1::2]
@@ -210,40 +203,40 @@ def comp_r(dert__, fig):
     # rdert
     rdert = dri__, drg__, dry__, drx__, drm
     
-    return rdert
-
-
-
-
+    return rdert'''
+    pass
 
 
 def comp_a(dert__, fga):
     """
-    Compute vector representation of gradient angle.
-    It is done by normalizing the vector (dy, dx).
-    Numpy broad-casting is a viable option when the
-    first dimension of input array (dert__) separate
-    different CogAlg parameter (like g, dy, dx).
-
-    cross-comp of a or aga, in 2x2 kernels unless root fork is comp_r: odd=TRUE
-    if aga:
-         dert = g, gg, gdy, gdx, gm, iga, iday, idax
-    else:
-         dert = i, g, dy, dx, m
-    <<< adert = ga, day, dax
+    cross-comp of a or aga in 2x2 kernels
+    Parameters
+    ----------
+    dert__ : array-like
+        dert's structure depends on fga
+    fga : bool
+        If True, dert's structure is interpreted as:
+        (g, gg, gdy, gdx, gm, iga, iday, idax)
+        Otherwise it is interpreted as:
+        (i, g, dy, dx, m)
+    Returns
+    -------
+    adert : masked_array
+        adert's structure is (i, g, dy, dx, m, ga, day, dax, da).
+    Examples
+    --------
+    'specific output'
     """
-
     # input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
-    i__, g__, dy__, dx__, m__ = dert__[0:4]
+    i__, g__, dy__, dx__, m__ = dert__[0:5]
 
-    if fga:  # if input is adert
-
+    if fga:  # input is adert
         ga__, day__, dax__ = dert__[5:8]
         a__ = [day__, dax__] / ga__  # similar to calc_a
-
     else:
         a__ = [dy__, dx__] / g__  # similar to calc_a
 
+    # this mask section would need further test later with actual input from frame_blobs
     if isinstance(a__, ma.masked_array):
         a__.data[a__.mask] = np.nan
         a__.mask = ma.nomask
@@ -254,60 +247,28 @@ def comp_a(dert__, fga):
     a__bottomright = a__[:, 1:, 1:]
     a__bottomleft = a__[:, 1:, :-1]
 
-    # get angle difference of each direction
+    a__directions = np.stack((a__topleft,
+                              a__topright,
+                              a__bottomright,
+                              a__bottomleft))
+
+    # diagonal angle differences
     da__ = np.stack((angle_diff(a__topleft, a__bottomright),
-                     angle_diff(a__bottomleft, a__topright),
                      angle_diff(a__topright, a__bottomleft)))
 
-    day__ = (
-            Y_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
-            Y_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
-    )
-    dax__ = (
-            X_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
-            X_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
-    )
+    # rate of change in y direction for the angles
+    # 'day__' = ('-sin_da0__', '-sin_da1__') + ('-cos_da0__', '-cos_da1__')
+    day__ = (-1 * da__[0][0],  -1 * da__[1][0]) + (-1 * da__[0][1], -1* da__[1][1])
+
+    # rate of change in x direction for the angles
+    #  'dax__' = ('-sin_da0__', '-sin_da1__') + ('cos_da0__', 'cos_da1__')
+    dax__ = (-1 * da__[0][0], -1 * da__[1][0]) + (da__[0][1], da__[1][1])
+
     # compute gradient magnitudes (how fast angles are changing)
-
-    ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
-
-    if fga:  # if input is adert
-
-        ga__, day__, dax__ = dert__[5:8]
-        a__ = [day__, dax__] / ga__  # similar to calc_a
-
-    else:
-        a__ = [dy__, dx__] / g__  # similar to calc_a
-
-    if isinstance(a__, ma.masked_array):
-        a__.data[a__.mask] = np.nan
-        a__.mask = ma.nomask
-
-    # each shifted a in 2x2 kernel
-    a__topleft = a__[:, :-1, :-1]
-    a__topright = a__[:, :-1, 1:]
-    a__bottomright = a__[:, 1:, 1:]
-    a__bottomleft = a__[:, 1:, :-1]
-
-    # get angle difference of each direction
-    da__ = np.stack((angle_diff(a__topleft, a__bottomright),
-                     angle_diff(a__bottomleft, a__topright),
-                     angle_diff(a__topright, a__bottomleft)))
-
-    day__ = (
-            Y_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
-            Y_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
-    )
-    dax__ = (
-            X_COEFFS[0][0] * angle_diff(a__topleft, a__bottomright) +
-            X_COEFFS[0][1] * angle_diff(a__topright, a__bottomleft)
-    )
-    # compute gradient magnitudes (how fast angles are changing)
-
     ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
 
     # change adert to tuple as ga__,day__,dax__ would have different dimension compared to inputs
-    adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__
+    adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__, a__directions
 
     return adert__
 
