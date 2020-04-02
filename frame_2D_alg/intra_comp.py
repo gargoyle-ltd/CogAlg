@@ -18,7 +18,6 @@ X_COEFFS = [
 # -----------------------------------------------------------------------------
 # Functions
 
-
 def comp_g(dert__, odd):
     """
         Cross-comp of g or ga in 2x2 kernels
@@ -39,6 +38,12 @@ def comp_g(dert__, odd):
         """
 
     g__, a__directions = dert__[1], dert__[-1]  # input
+
+    # this mask section would need further test later with actual input from frame_blobs
+    # I`m not sure, but probably they shouldn`t be masked?
+    if isinstance(g__, ma.masked_array):
+        g__.data[g__.mask] = np.nan
+        g__.mask = ma.nomask
 
     g__topleft = g__[:-1, :-1]
     g__topright = g__[:-1, 1:]
@@ -101,6 +106,7 @@ def comp_r(dert__, fig):
     # input is gdert (g,  gg, gdy, gdx, gm, iga, iday, idax)
     # input is dert  (i,  g,  dy,  dx,  m)  or
     # input is rdert (ir, gr, dry, drx, mr)
+    pass
     '''i__, g__, dy__, dx__, m__ = dert__[0:5]
 
     # get sparsed value
@@ -204,7 +210,6 @@ def comp_r(dert__, fig):
     rdert = dri__, drg__, dry__, drx__, drm
     
     return rdert'''
-    pass
 
 
 def comp_a(dert__, fga):
@@ -227,12 +232,14 @@ def comp_a(dert__, fga):
     --------
     'specific output'
     """
+
     # input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
     i__, g__, dy__, dx__, m__ = dert__[0:5]
 
     if fga:  # input is adert
         ga__, day__, dax__ = dert__[5:8]
         a__ = [day__, dax__] / ga__  # similar to calc_a
+
     else:
         a__ = [dy__, dx__] / g__  # similar to calc_a
 
@@ -253,16 +260,14 @@ def comp_a(dert__, fga):
                               a__bottomleft))
 
     # diagonal angle differences
-    da__ = np.stack((angle_diff(a__topleft, a__bottomright),
-                     angle_diff(a__topright, a__bottomleft)))
+    sin_da0__, cos_da0__ = angle_diff(a__topleft, a__bottomright)
+    sin_da1__, cos_da1__ = angle_diff(a__topright, a__bottomleft)
 
     # rate of change in y direction for the angles
-    # 'day__' = ('-sin_da0__', '-sin_da1__') + ('-cos_da0__', '-cos_da1__')
-    day__ = (-1 * da__[0][0],  -1 * da__[1][0]) + (-1 * da__[0][1], -1* da__[1][1])
+    day__ = (-sin_da0__,  -sin_da1__) + (-cos_da0__, -cos_da1__)
 
     # rate of change in x direction for the angles
-    #  'dax__' = ('-sin_da0__', '-sin_da1__') + ('cos_da0__', 'cos_da1__')
-    dax__ = (-1 * da__[0][0], -1 * da__[1][0]) + (da__[0][1], da__[1][1])
+    dax__ = (-sin_da0__, -sin_da1__) + (cos_da0__, cos_da1__)
 
     # compute gradient magnitudes (how fast angles are changing)
     ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
@@ -288,3 +293,4 @@ def angle_diff(a2, a1):
 
 # ----------------------------------------------------------------------
 # -----------------------------------------------------------------------------
+
