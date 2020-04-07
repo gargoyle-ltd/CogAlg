@@ -122,6 +122,7 @@ def comp_r(dert__, fig, fcr):
     i__left = i__[1:-1:2, :-2:2]
 
     # check to remove columns or rows without kernel
+    # instead of step = 3 to avoid miss last kernel in line
     while i__center.shape[0] > i__topleft.shape[1]:
         i__topleft = i__topleft[:-1, :-1]
         i__left = i__left[:-1, :-1]
