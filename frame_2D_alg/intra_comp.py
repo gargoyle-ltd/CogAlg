@@ -124,12 +124,10 @@ def comp_r(dert__, fig, fcr):
     # check to remove columns or rows without kernel
     while i__center.shape[0] > i__topleft.shape[1]:
         i__topleft = i__topleft[:-1, :-1]
-        i_top = i__left[:-1, :-1]
+        i__left = i__left[:-1, :-1]
         i__bottomleft = i__bottomleft[:-1, :-1]
 
-    while i__center.shape[0] > i__top.shape[1]:
-        i__top = i__top[:-1, :-1]
-        i__bottom = i__bottom[:-1, :-1]
+
 
 
     if fcr:
