@@ -51,7 +51,7 @@ def comp_g(dert__, odd):
 
     # y-decomposed difference between gs
     dgy__ = ((g__bottomleft + g__bottomright) - (
-            g__topleft * cos_da0__  + g__topright * cos_da1__)) * 0.5
+            g__topleft * cos_da0__ + g__topright * cos_da1__)) * 0.5
 
     # x-decomposed difference between gs
     dgx__ = ((g__topright + g__bottomright) - (
@@ -69,7 +69,7 @@ def comp_g(dert__, odd):
     return gdert
 
 
-def comp_r(dert__, fig):
+def comp_r(dert__, fig, fcr):
     """
     Cross-comp of input param (dert[0]) over rng set in intra_blob.
     This comparison is selective for blobs with below-average gradient,
@@ -106,92 +106,150 @@ def comp_r(dert__, fig):
     # input is dert  (i,  g,  dy,  dx,  m)  or
     # input is rdert (ir, gr, dry, drx, mr)
 
-    ir__, gr__, dry__, drx__, mr__ = dert__[0:5]
+    # fcr dert = [mga, idy, idx]
+
+    i__, g__, dy__, dx__ = dert__[0:4]
+
+    # i is ig if fig else pixel
+    i__center = i__[1:-2:2, 1:-2:2]
+    i__topleft = i__[:-2:2, :-2:2]
+    i__top = i__[:-2:2, 1:-1:2]
+    i__topright = i__[:-2:2, 2::2]
+    i__right = i__[1:-1:2, 2::2]
+    i__bottomright = i__[2::2, 2::2]
+    i__bottom = i__[2::2, 1:-1:2]
+    i__bottomleft = i__[2::2, :-2:2]
+    i__left = i__[1:-1:2, :-2:2]
+
+    if fcr:
+        a__ = [dy__, dx__] / i__
+
+        a__center =         a__[:, 1:-2:2, 1:-2:2]
+        a__topleft =        a__[:, :-2:2, :-2:2]
+        a__top =            a__[:, :-2:2, 1:-1:2]
+        a__topright =       a__[:, :-2:2, 2::2]
+        a__right =          a__[:, 1:-1:2, 2::2]
+        a__bottomright =    a__[:, 2::2, 2::2]
+        a__bottom =         a__[:, 2::2, 1:-1:2]
+        a__bottomleft =     a__[:, 2::2, :-2:2]
+        a__left =           a__[:, 1:-1:2, :-2:2]
+
+        # tuple of angle differences per direction:
+        dat__ = np.stack(angle_diff(a__center, a__topleft),
+                         angle_diff(a__center, a__top),
+                         angle_diff(a__center, a__topright),
+                         angle_diff(a__center, a__right),
+                         angle_diff(a__center, a__bottomright),
+                         angle_diff(a__center, a__bottom),
+                         angle_diff(a__center, a__bottomleft),
+                         angle_diff(a__center, a__left))
+
+        # y-decomposed difference between angles to center
+        dy__ = (dat__ * Y_COEFFS[1]).sum(axis=-1)
+
+        # x-decomposed difference between angles to center
+        dx__ = (dat__ * X_COEFFS[1]).sum(axis=-1)
+
+        # calculating gradient
+        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
+
+        # sum of matches (cosine similarities) per direction, same kernel as for g:
+        m__ =  np.minimum(i__center, i__topleft) \
+             + np.minimum(i__center, i__top) \
+             + np.minimum(i__center, i__topright) \
+             + np.minimum(i__center, i__right) \
+             + np.minimum(i__center, i__bottomright) \
+             + np.minimum(i__center, i__bottom) \
+             + np.minimum(i__center, i__bottomleft) \
+             + np.minimum(i__center, i__left)
+
+        # tuple of cosine differences per direction:
+        dt__ = np.stack((i__center - i__topleft * dat__[0][1]),
+                        (i__center - i__top * dat__[0][1]),
+                        (i__center - i__topright * dat__[0][1]),
+                        (i__center - i__right * dat__[0][1]),
+                        (i__center - i__bottomright * dat__[0][1]),
+                        (i__center - i__bottom * dat__[0][1]),
+                        (i__center - i__bottomleft * dat__[0][1]),
+                        (i__center - i__left * dat__[0][1]))
 
 
     if fig:
-        # center derts
-        ig_center = gr__[1:-2:2, 1:-2:2]
 
-        # get each direction
-        ig__topleft = gr__[:-2:2, :-2:2]
-        ig__topcenter = gr__[:-2:2, 1:-1:2]
-        ig__topright = gr__[:-2:2, 2::2]
-        ig__rightcenter = gr__[1:-1:2, 2::2]
-        ig__bottomright = gr__[2::2, 2::2]
-        ig__bottomcenter = gr__[2::2, 1:-1:2]
-        ig__bottomleft = gr__[2::2, :-2:2]
-        ig__leftcenter = gr__[1:-1:2, :-2:2]
+        m__, ga__, idy__, idx__ = dert__[[-4, -3, -2, -1]]  # else not present
+        a__ = [idy__, idx__] / i__  # i is input gradient
 
-        # angle, gradient, match
-        a__ = [dry__, drx__] / gr__
-        a__center = a__[1:-2:2, 1:-2:2]
+        a__center =         a__[:, 1:-2:2, 1:-2:2]
 
-        a__topleft = a__[:-2:2, :-2:2]
-        a__topcenter = a__[:-2:2, 1:-1:2]
-        a__topright = a__[:-2:2, 2::2]
-        a__rightcenter = a__[1:-1:2, 2::2]
-        a__bottomright = a__[2::2, 2::2]
-        a__bottomcenter = a__[2::2, 1:-1:2]
-        a__bottomleft = a__[2::2, :-2:2]
-        a__leftcenter = a__[1:-1:2, :-2:2]
+        a__topleft =        a__[:, :-2:2, :-2:2]
+        a__top =            a__[:, :-2:2, 1:-2:2]
+        a__topright =       a__[:, :-2:2, 2::2]
+        a__right =          a__[:, 1:-1:2, 2::2]
+        a__bottomright =    a__[:, 2::2, 2::2]
+        a__bottom =         a__[:, 2::2, 1:-1:2]
+        a__bottomleft =     a__[:, 2::2, :-2:2]
+        a__left =           a__[:, 1:-1:2, :-2:2]
 
-        # computing angles
-        ida__ = np.stack(angle_diff(a__center, a__topleft),
-                         angle_diff(a__center, a__topcenter),
+        # tuple of angle differences per direction:
+        dat__ = np.stack(angle_diff(a__center, a__topleft),
+                         angle_diff(a__center, a__top),
                          angle_diff(a__center, a__topright),
-                         angle_diff(a__center, a__rightcenter),
+                         angle_diff(a__center, a__right),
                          angle_diff(a__center, a__bottomright),
-                         angle_diff(a__center, a__bottomcenter),
+                         angle_diff(a__center, a__bottom),
                          angle_diff(a__center, a__bottomleft),
-                         angle_diff(a__center, a__leftcenter))
+                         angle_diff(a__center, a__left))
 
         # y-decomposed difference between angles to center
-        idy__ = (ida__ * Y_COEFFS[1]).sum(axis=-1)
+        dy__ = (dat__ * Y_COEFFS[1]).sum(axis=-1)
 
         # x-decomposed difference between angles to center
-        idx__ = (ida__ * X_COEFFS[1]).sum(axis=-1)
+        dx__ = (dat__ * X_COEFFS[1]).sum(axis=-1)
 
         # calculating gradient
-        idg__ = np.hypot(np.arctan2(*idy__), np.arctan2(*idx__))
+        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
 
         # calculating match
-        # are we using gradient from input or sparsed idg__?
-        drm__ =   np.minimum(ig_center, (ig__topleft * ida__[0][1])) \
-                + np.minimum(ig_center, (ig__topcenter * ida__[1][1])) \
-                + np.minimum(ig_center, (ig__topright * ida__[2][1])) \
-                + np.minimum(ig_center, (ig__rightcenter * ida__[2][1])) \
-                + np.minimum(ig_center, (ig__bottomright * ida__[2][1])) \
-                + np.minimum(ig_center, (ig__bottomcenter * ida__[2][1])) \
-                + np.minimum(ig_center, (ig__bottomleft * ida__[2][1])) \
-                + np.minimum(ig_center, (ig__leftcenter * ida__[2][1]))
+        m__ = np.minimum(i__center, (i__topleft * dat__[0][1])) \
+             + np.minimum(i__center, (i__top * dat__[1][1])) \
+             + np.minimum(i__center, (i__topright * dat__[2][1])) \
+             + np.minimum(i__center, (i__right * dat__[2][1])) \
+             + np.minimum(i__center, (i__bottomright * dat__[2][1])) \
+             + np.minimum(i__center, (i__bottom * dat__[2][1])) \
+             + np.minimum(i__center, (i__bottomleft * dat__[2][1])) \
+             + np.minimum(i__center, (i__left * dat__[2][1]))
+
+        # tuple of cosine differences per direction:
+        dt__ = np.stack((i__center - i__topleft * dat__[0][1]),
+                        (i__center - i__top * dat__[0][1]),
+                        (i__center - i__topright * dat__[0][1]),
+                        (i__center - i__right * dat__[0][1]),
+                        (i__center - i__bottomright * dat__[0][1]),
+                        (i__center - i__bottom * dat__[0][1]),
+                        (i__center - i__bottomleft * dat__[0][1]),
+                        (i__center - i__left * dat__[0][1]))
 
 
     else:
-        ir_center = ir__[1:-2:2, 1:-2:2]
+        # tuple of simple differences per direction:
+        dt__ = np.stack((i__center - i__topleft),
+                        (i__center - i__top),
+                        (i__center - i__topright),
+                        (i__center - i__right),
+                        (i__center - i__bottomright),
+                        (i__center - i__bottom),
+                        (i__center - i__bottomleft),
+                        (i__center - i__left))
 
-        ir__topleft = ir__[:-2:2, :-2:2]
-        ir__topcenter = ir__[:-2:2, 1:-1:2]
-        ir__topright = ir__[:-2:2, 2::2]
-        ir__rightcenter = ir__[1:-1:2, 2::2]
-        ir__bottomright = ir__[2::2, 2::2]
-        ir__bottomcenter = ir__[2::2, 1:-1:2]
-        ir__bottomleft = ir__[2::2, :-2:2]
-        ir__leftcenter = ir__[1:-1:2, :-2:2]
+        dy__ += (dt__ * Y_COEFFS[1]).sum(axis=-1)
+        dx__ += (dt__ * X_COEFFS[1]).sum(axis=-1)
 
-        ir_compares = np.stack((ir__topleft - ir_center),
-                               (ir__topcenter - ir_center),
-                               (ir__topright - ir_center),
-                               (ir__rightcenter - ir_center),
-                               (ir__bottomright - ir_center),
-                               (ir__bottomcenter - ir_center),
-                               (ir__bottomleft - ir_center),
-                               (ir__leftcenter - ir_center))
+        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
 
-        idy__ = (ir_compares * Y_COEFFS[1]).sum(axis=-1)
-        idx__ = (ir_compares * X_COEFFS[1]).sum(axis=-1)
+    rdert = (i__, g__, dy__, dx__, m__)
 
-        idg__ = np.hypot(np.arctan2(*idy__), np.arctan2(*idx__))
+    return rdert
+
 
 def comp_a(dert__, fga):
     """
@@ -253,6 +311,11 @@ def comp_a(dert__, fga):
     # compute gradient magnitudes (how fast angles are changing)
     ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
 
+    '''
+      sin(-θ) = -sin(θ), cos(-θ) = cos(θ): 
+      sin(da) = -sin(-da), cos(da) = cos(-da) => (sin(-da), cos(-da)) = (-sin(da), cos(da))
+    '''
+
     # change adert to tuple as ga__,day__,dax__ would have different dimension compared to inputs
     adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__, cos_da0__, cos_da1__
 
@@ -272,7 +335,5 @@ def angle_diff(a2, a1):
 
     return ma.array([sin, cos])
 
-
 # ----------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-
