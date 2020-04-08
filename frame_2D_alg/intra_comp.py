@@ -111,15 +111,15 @@ def comp_r(dert__, fig, fcr):
     i__, g__, dy__, dx__ = dert__[0:4]
 
     # i is ig if fig else pixel
-    i__center = i__[1:-2:2, 1:-2:2]
-    i__topleft = i__[:-2:2, :-2:2]
-    i__top = i__[:-2:2, 1:-1:2]
-    i__topright = i__[:-2:2, 2::2]
-    i__right = i__[1:-1:2, 2::2]
-    i__bottomright = i__[2::2, 2::2]
-    i__bottom = i__[2::2, 1:-1:2]
-    i__bottomleft = i__[2::2, :-2:2]
-    i__left = i__[1:-1:2, :-2:2]
+    i__center =         i__[1 :-1:2, 1:-1 :2]
+    i__topleft =        i__[0:-2:2, 0:-2:2]
+    i__top =            i__[:-2:2, 1:-1: 2]
+    i__topright =       i__[:-2:2, 2::2]
+    i__right =          i__[1:-1:2, 2::2]
+    i__bottomright =    i__[2::2, 2::2]
+    i__bottom =         i__[2::2, 1:-1 :2]
+    i__bottomleft =     i__[2::2, :-2:2]
+    i__left =           i__[1:-1:2, :-2:2]
 
     # check to remove columns or rows without kernel
     # instead of step = 3 to avoid miss last kernel in line
@@ -134,13 +134,13 @@ def comp_r(dert__, fig, fcr):
     if fcr:
         a__ = [dy__, dx__] / i__
 
-        a__center =         a__[:, 1:-2:2, 1:-2:2]
-        a__topleft =        a__[:, :-2:2, :-2:2]
-        a__top =            a__[:, :-2:2, 1:-1:2]
+        a__center =         a__[:, 1 :-1:2, 1:-1 :2]
+        a__topleft =        a__[:, 0:-2:2, 0:-2:2]
+        a__top =            a__[:, :-2:2, 1:-1: 2]
         a__topright =       a__[:, :-2:2, 2::2]
         a__right =          a__[:, 1:-1:2, 2::2]
         a__bottomright =    a__[:, 2::2, 2::2]
-        a__bottom =         a__[:, 2::2, 1:-1:2]
+        a__bottom =         a__[:, 2::2, 1:-1 :2]
         a__bottomleft =     a__[:, 2::2, :-2:2]
         a__left =           a__[:, 1:-1:2, :-2:2]
 
@@ -189,14 +189,13 @@ def comp_r(dert__, fig, fcr):
         m__, ga__, idy__, idx__ = dert__[[-4, -3, -2, -1]]  # else not present
         a__ = [idy__, idx__] / i__  # i is input gradient
 
-        a__center =         a__[:, 1:-2:2, 1:-2:2]
-
-        a__topleft =        a__[:, :-2:2, :-2:2]
-        a__top =            a__[:, :-2:2, 1:-2:2]
+        a__center =         a__[:, 1 :-1:2, 1:-1 :2]
+        a__topleft =        a__[:, 0:-2:2, 0:-2:2]
+        a__top =            a__[:, :-2:2, 1:-1: 2]
         a__topright =       a__[:, :-2:2, 2::2]
         a__right =          a__[:, 1:-1:2, 2::2]
         a__bottomright =    a__[:, 2::2, 2::2]
-        a__bottom =         a__[:, 2::2, 1:-1:2]
+        a__bottom =         a__[:, 2::2, 1:-1 :2]
         a__bottomleft =     a__[:, 2::2, :-2:2]
         a__left =           a__[:, 1:-1:2, :-2:2]
 
