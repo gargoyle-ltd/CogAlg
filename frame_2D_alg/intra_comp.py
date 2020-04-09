@@ -133,6 +133,8 @@ def comp_r(dert__, fig, root_fcr):
 
         else:
             m__, idy__, idx__ = [], [], []  # how do we initialize empty np.arrays of len=len(i__)?
+            m__ = np.zeros((i__center.shape[0],i__center.shape[1]))
+
         a__ = [idy__, idx__] / i__  # i is input gradient
 
         a__center =      a__[:, 1:-1:2, 1:-1:2]
@@ -155,6 +157,9 @@ def comp_r(dert__, fig, root_fcr):
                          angle_diff(a__center, a__bottom),
                          angle_diff(a__center, a__bottomleft),
                          angle_diff(a__center, a__left))
+
+        # roll axis to enable coefficients multiplication
+        dat__ = np.rollaxis(dat__, 0, 4)
 
         # y-decomposed difference between angles to center
         day__ = (dat__ * Y_COEFFS[1]).sum(axis=-1)
@@ -209,19 +214,22 @@ def comp_r(dert__, fig, root_fcr):
         XCOEF_ = [-1, 0, 1, 2, 1, 0, -1, -2]
 
         # comparisons of pairs
-        rim_ = np.stack(i__topleft - i__bottomright,
+        dt__ = np.stack(i__topleft - i__bottomright,
                         i__top - i__bottom,
                         i__topright - i__bottomleft,
                         i__right - i__left
                         )
 
-        for i__rim, YCOEF, XCOEF in zip(rim_, YCOEF_, XCOEF_):
+        dy__ = np.zeros((i__center.shape[0], i__center.shape[1]))
+        dx__ = np.zeros((i__center.shape[0], i__center.shape[1]))
+
+        for i__rim, YCOEF, XCOEF in zip(dt__, YCOEF_, XCOEF_):
 
             # decompose differences into dy and dx, same as conventional Gy and Gx:
-            dy__ += rim_ * YCOEF[:4]
-            dx__ += rim_ * XCOEF[:4]
+            dy__ += dt__ * YCOEF[:4]
+            dx__ += dt__ * XCOEF[:4]
 
-        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
+        g__ = np.hypot(dy__, dx__)
 
     # return dert__ with accumulated derivatives:
     if fig:
@@ -274,31 +282,42 @@ def comp_a(dert__, fga):
     a__bottomright = a__[:, 1:, 1:]
     a__bottomleft = a__[:, 1:, :-1]
 
-    a__directions = np.stack((a__topleft,
-                          a__topright,
-                          a__bottomright,
-                          a__bottomleft))
 
-    # diagonal angle differences
-    sin_da0__, cos_da0__ = angle_diff(a__topleft, a__bottomright)
-    sin_da1__, cos_da1__ = angle_diff(a__topright, a__bottomleft)
 
-    # rate of change in y direction for the angles
-    day__ = (-sin_da0__ - sin_da1__) + (cos_da0__ + cos_da1__)
+    # preallocate size of arrays
+    sin_da__ = [None] * 2
+    cos_da__ = [None] * 2
+    day__ = [None] * 2
+    day__[0] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
+    day__[1] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
+    dax__ = [None] * 2
+    dax__[0] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
+    dax__[1] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
 
-    # rate of change in x direction for the angles
-    dax__ = (-sin_da0__ + sin_da1__) + (cos_da0__ + cos_da1__)
+    a_rim__ = np.stack((a__topleft,
+                        a__topright,
+                        a__bottomright,
+                        a__bottomleft))
 
-    # compute gradient magnitudes (how fast angles are changing)
-    ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
+    YCOEF_ = -1, -1
+    XCOEF_ = -1, 1
 
-    '''
-      sin(-θ) = -sin(θ), cos(-θ) = cos(θ): 
-      sin(da) = -sin(-da), cos(da) = cos(-da) => (sin(-da), cos(-da)) = (-sin(da), cos(da))
-    '''
+    for i in range(2):
+        # opposing difference
+        sin_da__[i], cos_da__[i] = angle_diff(a_rim__[i], a_rim__[i + 2])
+
+        # sine part of day
+        day__[0] += sin_da__[i] * YCOEF_[i]
+        # cosine part of day
+        day__[1] += cos_da__[i]  # no sign based coefficient for cosine part
+        # sine part of dax
+        dax__[0] += sin_da__[i] * XCOEF_[i]
+        # cossine part of dax
+        dax__[1] += cos_da__[i]  # no sign based coefficient for cosine part
 
     # change adert to tuple as ga__,day__,dax__ would have different dimension compared to inputs
-    adert__ = i__, g__, dy__, dx__, m__, ga__, day__, dax__, cos_da0__, cos_da1__
+    adert__ = ma.stack((i__[:-1,:-1], g__[:-1,:-1], dy__[:-1,:-1], dx__[:-1,:-1], m__[:-1,:-1], ga__, *day__, *dax__,
+                        cos_da__[0], cos_da__[1]))
 
     return adert__
 
