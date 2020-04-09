@@ -105,10 +105,14 @@ def comp_r(dert__, fig, root_fcr):
 
     if root_fcr:  # if
         # if root fork is comp_r, all params are present in the input:
-        i__, g__, dy__, dx__ = dert__[[0, 1, 2, 3]]  # top dimension of numpy stack must be a list
+        i__, g__, dy__, dx__ = dert__[0:4]  # top dimension of numpy stack must be a list
+
     else:  # root fork is comp_g or comp_pixel
-        i__ = dert__[[0]]
-        g__, dy__, dx__ = [], [], []  # how do we initialize empty np.arrays of len=len(i__)?
+        i__ = dert__[0]
+        idy__ = np.zeros((i__.shape[0], i__.shape[1]))
+        idx__ = np.zeros((i__.shape[0], i__.shape[1]))
+        dy__ = np.zeros((i__.shape[0], i__.shape[1]))
+        dx__ = np.zeros((i__.shape[0], i__.shape[1]))
 
     # i is ig if fig else pixel
     i__center =      i__[1 :-1:2, 1:-1 :2]
@@ -125,6 +129,8 @@ def comp_r(dert__, fig, root_fcr):
     if fig:
         if root_fcr:
             m__, idy__, idx__ = dert__[[-4, -2, -1]]
+            m__ = m__[1:-1:2, 1:-1:2]
+
         else:
             m__, idy__, idx__ = [], [], []  # how do we initialize empty np.arrays of len=len(i__)?
         a__ = [idy__, idx__] / i__  # i is input gradient
@@ -157,34 +163,38 @@ def comp_r(dert__, fig, root_fcr):
         dax__ = (dat__ * X_COEFFS[1]).sum(axis=-1)
 
         # calculating gradient
-        ga__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
+        ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
 
         # calculating match
-        m__ = np.minimum(i__center, (i__topleft * dat__[0][1])) \
-             + np.minimum(i__center, (i__top * dat__[1][1])) \
-             + np.minimum(i__center, (i__topright * dat__[2][1])) \
-             + np.minimum(i__center, (i__right * dat__[2][1])) \
-             + np.minimum(i__center, (i__bottomright * dat__[2][1])) \
-             + np.minimum(i__center, (i__bottom * dat__[2][1])) \
-             + np.minimum(i__center, (i__bottomleft * dat__[2][1])) \
-             + np.minimum(i__center, (i__left * dat__[2][1]))
+        m__ =    np.minimum(i__center, (i__topleft * dat__[1][:, :, 0])) \
+               + np.minimum(i__center, (i__top * dat__[1][:, :, 1])) \
+               + np.minimum(i__center, (i__topright * dat__[1][:, :, 2])) \
+               + np.minimum(i__center, (i__right * dat__[1][:, :, 3])) \
+               + np.minimum(i__center, (i__bottomright * dat__[1][:, :, 4])) \
+               + np.minimum(i__center, (i__bottom * dat__[1][:, :, 5])) \
+               + np.minimum(i__center, (i__bottomleft * dat__[1][:, :, 6])) \
+               + np.minimum(i__center, (i__left * dat__[1][:, :, 7]))
 
         # tuple of cosine differences per direction:
-        dt__ = np.stack((i__center - i__topleft * dat__[0][1]),
-                        (i__center - i__top * dat__[0][1]),
-                        (i__center - i__topright * dat__[0][1]),
-                        (i__center - i__right * dat__[0][1]),
-                        (i__center - i__bottomright * dat__[0][1]),
-                        (i__center - i__bottom * dat__[0][1]),
-                        (i__center - i__bottomleft * dat__[0][1]),
-                        (i__center - i__left * dat__[0][1]))
+        dt__ = np.stack(((i__center - i__topleft * dat__[1][:, :, 0]),
+                         (i__center - i__top * dat__[1][:, :, 1]),
+                         (i__center - i__topright * dat__[1][:, :, 2]),
+                         (i__center - i__right * dat__[1][:, :, 3]),
+                         (i__center - i__bottomright * dat__[1][:, :, 4]),
+                         (i__center - i__bottom * dat__[1][:, :, 5]),
+                         (i__center - i__bottomleft * dat__[1][:, :, 6]),
+                         (i__center - i__left * dat__[1][:, :, 7])))
 
         dt__ = np.rollaxis(dt__, 0, 3)
+
+        # sparse dy and dx to enable the cumulative summation
+        dy__ = dy__[1:-1:2, 1:-1:2]
+        dx__ = dx__[1:-1:2, 1:-1:2]
 
         dy__ += (dt__ * Y_COEFFS[1]).sum(axis=-1)
         dx__ += (dt__ * X_COEFFS[1]).sum(axis=-1)
 
-        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
+        g__ = np.hypot(dy__, dx__)
 
 
     else:
@@ -197,23 +207,19 @@ def comp_r(dert__, fig, root_fcr):
         '''
         YCOEF_ = [-1, -2, -1, 0, 1, 2, 1, 0]
         XCOEF_ = [-1, 0, 1, 2, 1, 0, -1, -2]
-        # these COEFFs are for rim - center, reverse signs for center - rim comp?
 
-        rim_ = np.stack(i__topleft,
-                        i__top,
-                        i__topright,
-                        i__right,
-                        i__bottomright,
-                        i__bottom,
-                        i__bottomleft,
-                        i__left
+        # comparisons of pairs
+        rim_ = np.stack(i__topleft - i__bottomright,
+                        i__top - i__bottom,
+                        i__topright - i__bottomleft,
+                        i__right - i__left
                         )
+
         for i__rim, YCOEF, XCOEF in zip(rim_, YCOEF_, XCOEF_):
 
-            d__ = i__center - i__rim
             # decompose differences into dy and dx, same as conventional Gy and Gx:
-            dy__ += d__ * YCOEF
-            dx__ += d__ * XCOEF
+            dy__ += rim_ * YCOEF[:4]
+            dx__ += rim_ * XCOEF[:4]
 
         g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
 
