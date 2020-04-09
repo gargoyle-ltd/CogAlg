@@ -69,7 +69,7 @@ def comp_g(dert__, odd):
     return gdert
 
 
-def comp_r(dert__, fig, fcr):
+def comp_r(dert__, fig, root_fcr):
     """
     Cross-comp of input param (dert[0]) over rng set in intra_blob.
     This comparison is selective for blobs with below-average gradient,
@@ -108,96 +108,42 @@ def comp_r(dert__, fig, fcr):
 
     # fcr dert = [mga, idy, idx]
 
-    i__, g__, dy__, dx__ = dert__[0:4]
+    if root_fcr:  # if
+        # if root fork is comp_r, all params are present in the input:
+        i__, g__, dy__, dx__ = dert__[[0, 1, 2, 3]]  # top dimension of numpy stack must be a list
+    else:  # root fork is comp_g or comp_pixel
+        i__ = dert__[[0]]
+        g__, dy__, dx__ = [], [], []  # how do we initialize empty np.arrays of len=len(i__)?
 
     # i is ig if fig else pixel
-    i__center =         i__[1 :-1:2, 1:-1 :2]
-    i__topleft =        i__[0:-2:2, 0:-2:2]
-    i__top =            i__[:-2:2, 1:-1: 2]
-    i__topright =       i__[:-2:2, 2::2]
-    i__right =          i__[1:-1:2, 2::2]
-    i__bottomright =    i__[2::2, 2::2]
-    i__bottom =         i__[2::2, 1:-1 :2]
-    i__bottomleft =     i__[2::2, :-2:2]
-    i__left =           i__[1:-1:2, :-2:2]
-
-    # check to remove columns or rows without kernel
-    # instead of step = 3 to avoid miss last kernel in line
-    while i__center.shape[0] > i__topleft.shape[1]:
-        i__topleft = i__topleft[:-1, :-1]
-        i__left = i__left[:-1, :-1]
-        i__bottomleft = i__bottomleft[:-1, :-1]
-
-
-
-
-    if fcr:
-        a__ = [dy__, dx__] / i__
-
-        a__center =         a__[:, 1 :-1:2, 1:-1 :2]
-        a__topleft =        a__[:, 0:-2:2, 0:-2:2]
-        a__top =            a__[:, :-2:2, 1:-1: 2]
-        a__topright =       a__[:, :-2:2, 2::2]
-        a__right =          a__[:, 1:-1:2, 2::2]
-        a__bottomright =    a__[:, 2::2, 2::2]
-        a__bottom =         a__[:, 2::2, 1:-1 :2]
-        a__bottomleft =     a__[:, 2::2, :-2:2]
-        a__left =           a__[:, 1:-1:2, :-2:2]
-
-        # tuple of angle differences per direction:
-        dat__ = np.stack(angle_diff(a__center, a__topleft),
-                         angle_diff(a__center, a__top),
-                         angle_diff(a__center, a__topright),
-                         angle_diff(a__center, a__right),
-                         angle_diff(a__center, a__bottomright),
-                         angle_diff(a__center, a__bottom),
-                         angle_diff(a__center, a__bottomleft),
-                         angle_diff(a__center, a__left))
-
-        # y-decomposed difference between angles to center
-        dy__ = (dat__ * Y_COEFFS[1]).sum(axis=-1)
-
-        # x-decomposed difference between angles to center
-        dx__ = (dat__ * X_COEFFS[1]).sum(axis=-1)
-
-        # calculating gradient
-        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
-
-        # sum of matches (cosine similarities) per direction, same kernel as for g:
-        m__ =  np.minimum(i__center, i__topleft) \
-             + np.minimum(i__center, i__top) \
-             + np.minimum(i__center, i__topright) \
-             + np.minimum(i__center, i__right) \
-             + np.minimum(i__center, i__bottomright) \
-             + np.minimum(i__center, i__bottom) \
-             + np.minimum(i__center, i__bottomleft) \
-             + np.minimum(i__center, i__left)
-
-        # tuple of cosine differences per direction:
-        dt__ = np.stack((i__center - i__topleft * dat__[0][1]),
-                        (i__center - i__top * dat__[0][1]),
-                        (i__center - i__topright * dat__[0][1]),
-                        (i__center - i__right * dat__[0][1]),
-                        (i__center - i__bottomright * dat__[0][1]),
-                        (i__center - i__bottom * dat__[0][1]),
-                        (i__center - i__bottomleft * dat__[0][1]),
-                        (i__center - i__left * dat__[0][1]))
+    i__center =      i__[1 :-1:2, 1:-1 :2]
+    i__topleft =     i__[:-2:2, :-2:2]
+    i__top =         i__[:-2:2, 1:-1: 2]
+    i__topright =    i__[:-2:2, 2::2]
+    i__right =       i__[1:-1:2, 2::2]
+    i__bottomright = i__[2::2, 2::2]
+    i__bottom =      i__[2::2, 1:-1 :2]
+    i__bottomleft =  i__[2::2, :-2:2]
+    i__left =        i__[1:-1:2, :-2:2]
 
 
     if fig:
-
-        m__, ga__, idy__, idx__ = dert__[[-4, -3, -2, -1]]  # else not present
+        if root_fcr:
+            m__, idy__, idx__ = dert__[[-4, -2, -1]]
+        else:
+            m__, idy__, idx__ = [], [], []  # how do we initialize empty np.arrays of len=len(i__)?
         a__ = [idy__, idx__] / i__  # i is input gradient
 
-        a__center =         a__[:, 1 :-1:2, 1:-1 :2]
-        a__topleft =        a__[:, 0:-2:2, 0:-2:2]
-        a__top =            a__[:, :-2:2, 1:-1: 2]
-        a__topright =       a__[:, :-2:2, 2::2]
-        a__right =          a__[:, 1:-1:2, 2::2]
-        a__bottomright =    a__[:, 2::2, 2::2]
-        a__bottom =         a__[:, 2::2, 1:-1 :2]
-        a__bottomleft =     a__[:, 2::2, :-2:2]
-        a__left =           a__[:, 1:-1:2, :-2:2]
+        a__center =      a__[:, 1:-1:2, 1:-1:2]
+        a__topleft =     a__[:, :-2:2, :-2:2]
+        a__top =         a__[:, :-2:2, 1:-1: 2]
+        a__topright =    a__[:, :-2:2, 2::2]
+        a__right =       a__[:, 1:-1:2, 2::2]
+        a__bottomright = a__[:, 2::2, 2::2]
+        a__bottom =      a__[:, 2::2, 1:-1:2]
+        a__bottomleft =  a__[:, 2::2, :-2:2]
+        a__left =        a__[:, 1:-1:2, :-2:2]
+
 
         # tuple of angle differences per direction:
         dat__ = np.stack(angle_diff(a__center, a__topleft),
@@ -210,13 +156,13 @@ def comp_r(dert__, fig, fcr):
                          angle_diff(a__center, a__left))
 
         # y-decomposed difference between angles to center
-        dy__ = (dat__ * Y_COEFFS[1]).sum(axis=-1)
+        day__ = (dat__ * Y_COEFFS[1]).sum(axis=-1)
 
         # x-decomposed difference between angles to center
-        dx__ = (dat__ * X_COEFFS[1]).sum(axis=-1)
+        dax__ = (dat__ * X_COEFFS[1]).sum(axis=-1)
 
         # calculating gradient
-        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
+        ga__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
 
         # calculating match
         m__ = np.minimum(i__center, (i__topleft * dat__[0][1])) \
@@ -238,89 +184,114 @@ def comp_r(dert__, fig, fcr):
                         (i__center - i__bottomleft * dat__[0][1]),
                         (i__center - i__left * dat__[0][1]))
 
-
-    else:
-        # tuple of simple differences per direction:
-        dt__ = np.stack((i__center - i__topleft),
-                        (i__center - i__top),
-                        (i__center - i__topright),
-                        (i__center - i__right),
-                        (i__center - i__bottomright),
-                        (i__center - i__bottom),
-                        (i__center - i__bottomleft),
-                        (i__center - i__left))
+        dt__ = np.rollaxis(dt__, 0, 3)
 
         dy__ += (dt__ * Y_COEFFS[1]).sum(axis=-1)
         dx__ += (dt__ * X_COEFFS[1]).sum(axis=-1)
 
         g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
 
-    rdert = (i__, g__, dy__, dx__, m__)
+
+    else:
+        '''
+        # Sobel operator
+        # |--(clockwise)--+  |--(clockwise)--+
+        # YCOEF: -1  -2  -1  ¦   XCOEF: -1   0   1  ¦
+        #         0       0  ¦          -2       2  ¦
+        #         1   2   1  ¦          -1   0   1  ¦
+        '''
+        YCOEF_ = -[1, -2, -1, 0, 1, 2, 1, 0]
+        XCOEF_ = -[1, 0, 1, 2, 1, 0, -1, -2]
+        # these COEFFs are for rim - center, reverse signs for center - rim comp?
+
+        rim_ = np.stack(i__topleft,
+                        i__top,
+                        i__topright,
+                        i__right,
+                        i__bottomright,
+                        i__bottom,
+                        i__bottomleft,
+                        i__left
+                        )
+        for i__rim, YCOEF, XCOEF in zip(rim_, YCOEF_, XCOEF_):
+
+            d__ = i__center - i__rim
+            # decompose differences into dy and dx, same as conventional Gy and Gx:
+            dy__ += d__ * YCOEF
+            dx__ += d__ * XCOEF
+
+        g__ = np.hypot(np.arctan2(*dy__), np.arctan2(*dx__))
+
+    # return dert__ with accumulated derivatives:
+    if fig:
+        rdert = i__, g__, dy__, dx__, m__, ga__, idy__, idx__
+    else:
+        rdert = i__, g__, dy__, dx__
 
     return rdert
 
 
 def comp_a(dert__, fga):
-    """
-    cross-comp of a or aga in 2x2 kernels
-    Parameters
-    ----------
-    dert__ : array-like
-        dert's structure depends on fga
-    fga : bool
-        If True, dert's structure is interpreted as:
-        (g, gg, gdy, gdx, gm, iga, iday, idax)
-        Otherwise it is interpreted as:
-        (i, g, dy, dx, m)
-    Returns
-    -------
-    adert : masked_array
-        adert's structure is (i, g, dy, dx, m, ga, day, dax, da).
-    Examples
-    --------
-    'specific output'
-    """
+"""
+cross-comp of a or aga in 2x2 kernels
+Parameters
+----------
+dert__ : array-like
+dert's structure depends on fga
+fga : bool
+If True, dert's structure is interpreted as:
+(g, gg, gdy, gdx, gm, iga, iday, idax)
+Otherwise it is interpreted as:
+(i, g, dy, dx, m)
+Returns
+-------
+adert : masked_array
+adert's structure is (i, g, dy, dx, m, ga, day, dax, da).
+Examples
+--------
+'specific output'
+"""
 
-    # input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
-    i__, g__, dy__, dx__, m__ = dert__[0:5]
+# input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
+i__, g__, dy__, dx__, m__ = dert__[0:5]
 
-    if fga:  # input is adert
-        ga__, day__, dax__ = dert__[5:8]
-        a__ = [day__, dax__] / ga__  # similar to calc_a
+if fga:  # input is adert
+ga__, day__, dax__ = dert__[5:8]
+a__ = [day__, dax__] / ga__  # similar to calc_a
 
-    else:
-        a__ = [dy__, dx__] / g__  # similar to calc_a
+else:
+a__ = [dy__, dx__] / g__  # similar to calc_a
 
-    # this mask section would need further test later with actual input from frame_blobs
-    if isinstance(a__, ma.masked_array):
-        a__.data[a__.mask] = np.nan
-        a__.mask = ma.nomask
+# this mask section would need further test later with actual input from frame_blobs
+if isinstance(a__, ma.masked_array):
+a__.data[a__.mask] = np.nan
+a__.mask = ma.nomask
 
-    # each shifted a in 2x2 kernel
-    a__topleft = a__[:, :-1, :-1]
-    a__topright = a__[:, :-1, 1:]
-    a__bottomright = a__[:, 1:, 1:]
-    a__bottomleft = a__[:, 1:, :-1]
+# each shifted a in 2x2 kernel
+a__topleft = a__[:, :-1, :-1]
+a__topright = a__[:, :-1, 1:]
+a__bottomright = a__[:, 1:, 1:]
+a__bottomleft = a__[:, 1:, :-1]
 
-    a__directions = np.stack((a__topleft,
-                              a__topright,
-                              a__bottomright,
-                              a__bottomleft))
+a__directions = np.stack((a__topleft,
+                      a__topright,
+                      a__bottomright,
+                      a__bottomleft))
 
-    # diagonal angle differences
-    sin_da0__, cos_da0__ = angle_diff(a__topleft, a__bottomright)
-    sin_da1__, cos_da1__ = angle_diff(a__topright, a__bottomleft)
+# diagonal angle differences
+sin_da0__, cos_da0__ = angle_diff(a__topleft, a__bottomright)
+sin_da1__, cos_da1__ = angle_diff(a__topright, a__bottomleft)
 
-    # rate of change in y direction for the angles
-    day__ = (-sin_da0__ - sin_da1__) + (cos_da0__ + cos_da1__)
+# rate of change in y direction for the angles
+day__ = (-sin_da0__ - sin_da1__) + (cos_da0__ + cos_da1__)
 
-    # rate of change in x direction for the angles
-    dax__ = (-sin_da0__ + sin_da1__) + (cos_da0__ + cos_da1__)
+# rate of change in x direction for the angles
+dax__ = (-sin_da0__ + sin_da1__) + (cos_da0__ + cos_da1__)
 
-    # compute gradient magnitudes (how fast angles are changing)
-    ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
+# compute gradient magnitudes (how fast angles are changing)
+ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
 
-    '''
+'''
       sin(-θ) = -sin(θ), cos(-θ) = cos(θ): 
       sin(da) = -sin(-da), cos(da) = cos(-da) => (sin(-da), cos(-da)) = (-sin(da), cos(da))
     '''
