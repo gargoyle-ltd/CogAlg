@@ -102,11 +102,6 @@ def comp_r(dert__, fig, root_fcr):
     # comparand = dert[0]
     """
 
-    # input is gdert (g,  gg, gdy, gdx, gm, iga, iday, idax)
-    # input is dert  (i,  g,  dy,  dx,  m)  or
-    # input is rdert (ir, gr, dry, drx, mr)
-
-    # fcr dert = [mga, idy, idx]
 
     if root_fcr:  # if
         # if root fork is comp_r, all params are present in the input:
@@ -200,8 +195,8 @@ def comp_r(dert__, fig, root_fcr):
         #         0       0  ¦          -2       2  ¦
         #         1   2   1  ¦          -1   0   1  ¦
         '''
-        YCOEF_ = -[1, -2, -1, 0, 1, 2, 1, 0]
-        XCOEF_ = -[1, 0, 1, 2, 1, 0, -1, -2]
+        YCOEF_ = [-1, -2, -1, 0, 1, 2, 1, 0]
+        XCOEF_ = [-1, 0, 1, 2, 1, 0, -1, -2]
         # these COEFFs are for rim - center, reverse signs for center - rim comp?
 
         rim_ = np.stack(i__topleft,
@@ -232,66 +227,66 @@ def comp_r(dert__, fig, root_fcr):
 
 
 def comp_a(dert__, fga):
-"""
-cross-comp of a or aga in 2x2 kernels
-Parameters
-----------
-dert__ : array-like
-dert's structure depends on fga
-fga : bool
-If True, dert's structure is interpreted as:
-(g, gg, gdy, gdx, gm, iga, iday, idax)
-Otherwise it is interpreted as:
-(i, g, dy, dx, m)
-Returns
--------
-adert : masked_array
-adert's structure is (i, g, dy, dx, m, ga, day, dax, da).
-Examples
---------
-'specific output'
-"""
+    """
+    cross-comp of a or aga in 2x2 kernels
+    Parameters
+    ----------
+    dert__ : array-like
+    dert's structure depends on fga
+    fga : bool
+    If True, dert's structure is interpreted as:
+    (g, gg, gdy, gdx, gm, iga, iday, idax)
+    Otherwise it is interpreted as:
+    (i, g, dy, dx, m)
+    Returns
+    -------
+    adert : masked_array
+    adert's structure is (i, g, dy, dx, m, ga, day, dax, da).
+    Examples
+    --------
+    'specific output'
+    """
 
-# input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
-i__, g__, dy__, dx__, m__ = dert__[0:5]
+    # input dert = (i,  g,  dy,  dx,  m, ga, day, dax, dat(da0, da1, da2, da3))
+    i__, g__, dy__, dx__, m__ = dert__[0:5]
 
-if fga:  # input is adert
-ga__, day__, dax__ = dert__[5:8]
-a__ = [day__, dax__] / ga__  # similar to calc_a
+    if fga:  # input is adert
+        ga__, day__, dax__ = dert__[5:8]
+        a__ = [day__, dax__] / ga__  # similar to calc_a
 
-else:
-a__ = [dy__, dx__] / g__  # similar to calc_a
+    else:
+        a__ = [dy__, dx__] / g__  # similar to calc_a
 
-# this mask section would need further test later with actual input from frame_blobs
-if isinstance(a__, ma.masked_array):
-a__.data[a__.mask] = np.nan
-a__.mask = ma.nomask
+    # this mask section would need further test later with actual input from frame_blobs
+    if isinstance(a__, ma.masked_array):
+        a__.data[a__.mask] = np.nan
+        a__.mask = ma.nomask
 
-# each shifted a in 2x2 kernel
-a__topleft = a__[:, :-1, :-1]
-a__topright = a__[:, :-1, 1:]
-a__bottomright = a__[:, 1:, 1:]
-a__bottomleft = a__[:, 1:, :-1]
+    # each shifted a in 2x2 kernel
+    a__topleft = a__[:, :-1, :-1]
+    a__topright = a__[:, :-1, 1:]
+    a__bottomright = a__[:, 1:, 1:]
+    a__bottomleft = a__[:, 1:, :-1]
 
-a__directions = np.stack((a__topleft,
-                      a__topright,
-                      a__bottomright,
-                      a__bottomleft))
+    a__directions = np.stack((a__topleft,
+                          a__topright,
+                          a__bottomright,
+                          a__bottomleft))
 
-# diagonal angle differences
-sin_da0__, cos_da0__ = angle_diff(a__topleft, a__bottomright)
-sin_da1__, cos_da1__ = angle_diff(a__topright, a__bottomleft)
+    # diagonal angle differences
+    sin_da0__, cos_da0__ = angle_diff(a__topleft, a__bottomright)
+    sin_da1__, cos_da1__ = angle_diff(a__topright, a__bottomleft)
 
-# rate of change in y direction for the angles
-day__ = (-sin_da0__ - sin_da1__) + (cos_da0__ + cos_da1__)
+    # rate of change in y direction for the angles
+    day__ = (-sin_da0__ - sin_da1__) + (cos_da0__ + cos_da1__)
 
-# rate of change in x direction for the angles
-dax__ = (-sin_da0__ + sin_da1__) + (cos_da0__ + cos_da1__)
+    # rate of change in x direction for the angles
+    dax__ = (-sin_da0__ + sin_da1__) + (cos_da0__ + cos_da1__)
 
-# compute gradient magnitudes (how fast angles are changing)
-ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
+    # compute gradient magnitudes (how fast angles are changing)
+    ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
 
-'''
+    '''
       sin(-θ) = -sin(θ), cos(-θ) = cos(θ): 
       sin(da) = -sin(-da), cos(da) = cos(-da) => (sin(-da), cos(-da)) = (-sin(da), cos(da))
     '''
