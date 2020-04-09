@@ -287,9 +287,11 @@ def comp_a(dert__, fga):
     # preallocate size of arrays
     sin_da__ = [None] * 2
     cos_da__ = [None] * 2
+
     day__ = [None] * 2
     day__[0] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
     day__[1] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
+
     dax__ = [None] * 2
     dax__[0] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
     dax__[1] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
@@ -299,8 +301,8 @@ def comp_a(dert__, fga):
                         a__bottomright,
                         a__bottomleft))
 
-    YCOEF_ = -1, -1
-    XCOEF_ = -1, 1
+    YCOEF_ = [-1, -1]
+    XCOEF_ = [-1, 1]
 
     for i in range(2):
         # opposing difference
