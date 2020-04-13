@@ -211,11 +211,16 @@ def comp_r(dert__, fig, root_fcr):
             dy__ += d__ * YCOEF  # y-decomposed center-to-rim difference
             dx__ += d__ * XCOEF  # x-decomposed center-to-rim difference
 
-        g__ = np.hypot(dy__, dx__)
+        '''g__ = np.hypot(dy__, dx__)'''
+        g__ = np.stack((abs(i__topleft  - i__bottomright) +
+                        abs(i__topright - i__bottomleft) +
+                        abs(i__left     - i__right) +
+                        abs(i__top      - i__bottom)
+                        ))
 
     # return dert__ with accumulated derivatives:
     if fig:
-        rdert = i__, g__, dy__, dx__, m__, ga__, idy__, idx__
+        rdert = i__, g__, dy__, dx__, m__, ga__, dy__, dx__
     else:
         rdert = i__, g__, dy__, dx__
 
