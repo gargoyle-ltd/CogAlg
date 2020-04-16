@@ -156,7 +156,7 @@ def layer_3(dert__, M_sign, G_sign, fga, root_fcr, fig):
 if __name__ == "__main__":
     # Initial comp:
     print('Reading image...')
-    image = cv2.imread('images/raccoon.jpg').astype(int)  # #imread(IMAGE_PATH)
+    image = cv2.imread('images/raccoon.jpg', 0).astype(int)  # #imread(IMAGE_PATH)
     print('Done!')
 
     print('Doing first comp...')
