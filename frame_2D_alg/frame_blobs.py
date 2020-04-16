@@ -47,7 +47,8 @@ from utils import *
 # Adjustable parameters:
 
 kwidth = 3  # smallest input-centered kernel: frame | blob shrink by 2 pixels per row
-ave = 15  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
+ave_G = 15  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
+ave_M = 25 # main criterion for for fork
 
 # ----------------------------------------------------------------------------------------------------------------------------------------
 # Functions
@@ -59,7 +60,7 @@ def image_to_blobs(image):
 
     dert__ = comp_pixel(image)  # 2x2 cross-comparison / cross-correlation
 
-    frame = dict(rng=1, dert__=dert__, mask=None, I=0, G=0, Dy=0, Dx=0, blob_=[])
+    frame = dict(rng=1, dert__=dert__, mask=None, I=0, G=0, Dy=0, Dx=0, M=0, blob_=[])
     stack_ = deque()  # buffer of running vertical stacks of Ps
     height, width = dert__.shape[1:]
 
@@ -89,27 +90,34 @@ def form_P_(dert_):  # horizontal clustering and summation of dert params into P
     # P is a segment of same-sign derts in horizontal slice of a blob
 
     P_ = deque()  # row of Ps
-    I, G, Dy, Dx, L, x0 = *dert_[0], 1, 0  # initialize P params with 1st dert params
-    G -= ave
+    I, G, Dy, Dx, M, L, x0 = *dert_[0], 1, 0  # initialize P params with 1st dert params
+    G -= ave_G
+    M -= ave_M
     _s = G > 0  # sign
-    for x, (p, g, dy, dx) in enumerate(dert_[1:], start=1):
-        vg = g - ave  # deviation of g
+    for x, (p, g, dy, dx, m) in enumerate(dert_[1:], start=1):
+        vg = g - ave_G  # deviation of g
+        dm = ave_M - m
+        '''
+        sign_m = dm > 0
+        '''
+        # we still use sign by gradient for clustering in P, or should change it for sign by M?
         s = vg > 0
         if s != _s:
             # terminate and pack P:
-            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, dert_=dert_[x0:x0 + L], sign=_s)
+            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, dert_=dert_[x0:x0 + L], sign=_s)
             P_.append(P)
             # initialize new P:
-            I, G, Dy, Dx, L, x0 = 0, 0, 0, 0, 0, x
+            I, G, Dy, Dx, M, L, x0 = 0, 0, 0, 0, 0, 0, x
         # accumulate P params:
         I += p
         G += vg  # M += m only within negative vg blobs
         Dy += dy
         Dx += dx
+        M += dm
         L += 1
         _s = s  # prior sign
 
-    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, dert_=dert_[x0:x0 + L], sign=_s)
+    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, dert_=dert_[x0:x0 + L], sign=_s)
     P_.append(P)  # terminate last P in a row
     return P_
 
@@ -181,18 +189,18 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
     while P_:
         P, up_fork_ = P_.popleft()
         s = P.pop('sign')
-        I, G, Dy, Dx, L, x0, dert_ = P.values()
+        I, G, Dy, Dx, M, L, x0, dert_ = P.values()
         xn = x0 + L  # next-P x0
         if not up_fork_:
             # initialize new stack for each input-row P that has no connections in higher row:
-            blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, S=0, Ly=0), box=[y, x0, xn], stack_=[], sign=s, open_stacks=1)
-            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
+            blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, M=0, S=0, Ly=0), box=[y, x0, xn], stack_=[], sign=s, open_stacks=1)
+            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
             blob['stack_'].append(new_stack)
         else:
             if len(up_fork_) == 1 and up_fork_[0]['down_fork_cnt'] == 1:
                 # P has one up_fork and that up_fork has one root: merge P into up_fork stack:
                 new_stack = up_fork_[0]
-                accum_Dert(new_stack, I=I, G=G, Dy=Dy, Dx=Dx, S=L, Ly=1)
+                accum_Dert(new_stack, I=I, G=G, Dy=Dy, Dx=Dx, M=M, S=L, Ly=1)
                 new_stack['Py_'].append(P)  # Py_: vertical buffer of Ps
                 new_stack['down_fork_cnt'] = 0  # reset down_fork_cnt
                 blob = new_stack['blob']
@@ -200,7 +208,7 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
             else:  # if > 1 up_forks, or 1 up_fork that has > 1 down_fork_cnt:
                 blob = up_fork_[0]['blob']
                 # initialize new_stack with up_fork blob:
-                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
+                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
                 blob['stack_'].append(new_stack)  # stack is buffered into blob
 
                 if len(up_fork_) > 1:  # merge blobs of all up_forks
@@ -214,7 +222,7 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
                         if not up_fork['blob'] is blob:
                             Dert, box, stack_, s, open_stacks = up_fork['blob'].values()  # merged blob
                             I, G, Dy, Dx, S, Ly = Dert.values()
-                            accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly)
+                            accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, M=M, S=S, Ly=Ly)
                             blob['open_stacks'] += open_stacks
                             blob['box'][0] = min(blob['box'][0], box[0])  # extend box y0
                             blob['box'][1] = min(blob['box'][1], box[1])  # extend box x0
@@ -237,8 +245,8 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
 
 def form_blob(stack, frame):  # increment blob with terminated stack, check for blob termination and merger into frame
 
-    I, G, Dy, Dx, S, Ly, y0, Py_, blob, down_fork_cnt, sign = stack.values()
-    accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly)
+    I, G, Dy, Dx, M, S, Ly, y0, Py_, blob, down_fork_cnt, sign = stack.values()
+    accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, M=M, S=S, Ly=Ly)
     # terminated stack is merged into continued or initialized blob (all connected stacks):
 
     blob['open_stacks'] += down_fork_cnt - 1  # incomplete stack cnt + terminated stack down_fork_cnt - 1: stack itself
@@ -264,16 +272,18 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
         blob.pop('open_stacks')
         blob.update(box=(y0, yn, x0, xn),  # boundary box
                     map=~mask,  # to compute overlap in comp_blob
-                    crit=1,  # clustering criterion is g
+                    # since the criterion is m crit is not needed, right?
+                    # crit=1,  # clustering criterion is g
                     rng=1,  # if 3x3 kernel
-                    dert__=dert__,  # dert__ + box replace slices=(Ellipsis, slice(y0, yn), slice(x0, xn))
+                    dert__= dert__,  # dert__ + box replace slices=(Ellipsis, slice(y0, yn), slice(x0, xn))
                     root_fork=frame,
                     fork_=defaultdict(dict),  # or []? contains forks ( sub-blobs
                     )
         frame.update(I=frame['I'] + blob['Dert']['I'],
                      G=frame['G'] + blob['Dert']['G'],
                      Dy=frame['Dy'] + blob['Dert']['Dy'],
-                     Dx=frame['Dx'] + blob['Dert']['Dx'])
+                     Dx=frame['Dx'] + blob['Dert']['Dx'],
+                     M =frame['M'] + blob['Dert']['M'])
 
         frame['blob_'].append(blob)
 
@@ -297,8 +307,10 @@ if __name__ == '__main__':
 
     start_time = time()
     frame = image_to_blobs(image)
+    from intra_blob_draft import *
 
-    intra=0
+
+    intra=1
     if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
 
         from intra_blob_draft import *
@@ -310,9 +322,9 @@ if __name__ == '__main__':
                     intra_blob(blob, rdn=1, rng=1.41, fig=0, fca=1, fcr=0, fga=0, fc3=0)
                     # +G blob' comp_a, form 2x2 aderts = ga, day, dax, -> comp_ga if +Ga, else comp_g if -Ga
 
-            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
-                    intra_blob(blob, rdn=1, rng=1, fig=0, fca=0, fcr=1, fga=0, fc3=1)
-                    # -G blob' comp_r, form 3x3 rderts = dert, -> comp_a if +G, else comp_rng if -G
+            # elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
+            #         intra_blob(blob, rdn=1, rng=1, fig=0, fca=0, fcr=1, fga=0)
+            #         # -G blob' comp_r, form 3x3 rderts = dert, -> comp_a if +G, else comp_rng if -G
                     '''
                     with feedback:
                     dert__ = comp_a|r(blob['dert__'], rng=1)  
