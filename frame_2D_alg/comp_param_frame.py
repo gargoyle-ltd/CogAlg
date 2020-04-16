@@ -156,11 +156,11 @@ def layer_3(dert__, M_sign, G_sign, fga, root_fcr, fig):
 if __name__ == "__main__":
     # Initial comp:
     print('Reading image...')
-    image = imread(IMAGE_PATH)
+    image = cv2.imread('images/raccoon.jpg').astype(int)  # #imread(IMAGE_PATH)
     print('Done!')
 
     print('Doing first comp...')
-    dert_ = comp_pixel(image)
+    image = comp_pixel(image)
     print('Done!')
     frame = image_to_blobs(image)
 
