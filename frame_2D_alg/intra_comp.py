@@ -118,15 +118,17 @@ def comp_r(dert__, fig, root_fcr):
     i__left =        i__[1:-1:2, :-2:2]
 
     if root_fcr:
-        dy__, dx__ = dert__[[2, 3]]  # top dimension of numpy stack must be a list
+        idy__, idx__, m__ = dert__[[2, 3, 4]]  # top dimension of numpy stack must be a list
 
         # g__ is recomputed from accumulated derivatives, sparse:
-        dy__ = dy__[1:-1:2, 1:-1:2]
-        dx__ = dx__[1:-1:2, 1:-1:2]
+        dy__ = idy__[1:-1:2, 1:-1:2]
+        dx__ = idx__[1:-1:2, 1:-1:2]
 
     else:  # root fork is comp_g or comp_pixel
         dy__ = np.zeros((i__center.shape[0], i__center.shape[1]))
         dx__ = np.zeros((i__center.shape[0], i__center.shape[1]))
+        m__ = np.zeros((i__center.shape[0], i__center.shape[1]))
+
 
     if not fig:
         # compare four diametrically opposed pairs of rim pixels:
@@ -145,9 +147,21 @@ def comp_r(dert__, fig, root_fcr):
 
         g__ = np.hypot(dy__, dx__)
 
-    else:
+        m__ += ((abs(i__center - i__topleft)
+                 + abs(i__center - i__top)
+                 + abs(i__center - i__topright)
+                 + abs(i__center - i__right)
+                 + abs(i__center - i__bottomright)
+                 + abs(i__center - i__bottom)
+                 + abs(i__center - i__bottomleft)
+                 + abs(i__center - i__left)
+                 ))
 
-        a__ = [dy__, dx__] / i__  # i is input gradient
+    else:
+        if not root_fcr:
+            idy__, idx__ = dert__[[-2, -1]]  # root fork is comp_g, not sparse
+
+        a__ = [idy__, idx__] / i__  # i is input gradient
 
         a__center =      a__[:, 1:-1:2, 1:-1:2]
         a__topleft =     a__[:, :-2:2, :-2:2]
@@ -168,7 +182,8 @@ def comp_r(dert__, fig, root_fcr):
                           angle_diff(a__center, a__bottomright),
                           angle_diff(a__center, a__bottom),
                           angle_diff(a__center, a__bottomleft),
-                          angle_diff(a__center, a__left)))
+                          angle_diff(a__center, a__left)
+                          ))
 
         if root_fcr:
             m__, day__, dax__ = dert__[[-4, -2, -1]]  # skip ga: recomputed, output for summation only?
@@ -187,132 +202,39 @@ def comp_r(dert__, fig, root_fcr):
         ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
 
         # calculating match
-        m__ +=  (np.minimum(i__center, (i__topleft      * dat__[1][:, :, 0]))
-               + np.minimum(i__center, (i__top          * dat__[1][:, :, 1]))
-               + np.minimum(i__center, (i__topright     * dat__[1][:, :, 2]))
-               + np.minimum(i__center, (i__right        * dat__[1][:, :, 3]))
-               + np.minimum(i__center, (i__bottomright  * dat__[1][:, :, 4]))
-               + np.minimum(i__center, (i__bottom       * dat__[1][:, :, 5]))
-               + np.minimum(i__center, (i__bottomleft   * dat__[1][:, :, 6]))
-               + np.minimum(i__center, (i__left         * dat__[1][:, :, 7])))
+        m__ +=  (np.minimum(i__center, (i__topleft      * dat__[1][1]))
+               + np.minimum(i__center, (i__top          * dat__[1][1]))
+               + np.minimum(i__center, (i__topright     * dat__[1][1]))
+               + np.minimum(i__center, (i__right        * dat__[1][1]))
+               + np.minimum(i__center, (i__bottomright  * dat__[1][1]))
+               + np.minimum(i__center, (i__bottom       * dat__[1][1]))
+               + np.minimum(i__center, (i__bottomleft   * dat__[1][1]))
+               + np.minimum(i__center, (i__left         * dat__[1][1])))
 
         # tuple of cosine differences per direction:
-        dt__ = np.stack(((i__center - i__topleft     * dat__[1][:, :, 0]),
-                         (i__center - i__top         * dat__[1][:, :, 1]),
-                         (i__center - i__topright    * dat__[1][:, :, 2]),
-                         (i__center - i__right       * dat__[1][:, :, 3]),
-                         (i__center - i__bottomright * dat__[1][:, :, 4]),
-                         (i__center - i__bottom      * dat__[1][:, :, 5]),
-                         (i__center - i__bottomleft  * dat__[1][:, :, 6]),
-                         (i__center - i__left        * dat__[1][:, :, 7])))
+        dt__ = np.stack(((i__center - i__topleft     * dat__[1][1]),
+                         (i__center - i__top         * dat__[1][1]),
+                         (i__center - i__topright    * dat__[1][1]),
+                         (i__center - i__right       * dat__[1][1]),
+                         (i__center - i__bottomright * dat__[1][1]),
+                         (i__center - i__bottom      * dat__[1][1]),
+                         (i__center - i__bottomleft  * dat__[1][1]),
+                         (i__center - i__left        * dat__[1][1])))
 
         for d__, YCOEF, XCOEF in zip(dt__, YCOEFs, XCOEFs):  # accumulate in prior-rng dy, dx:
 
             dy__ += d__ * YCOEF  # y-decomposed center-to-rim difference
             dx__ += d__ * XCOEF  # x-decomposed center-to-rim difference
 
-        '''g__ = np.hypot(dy__, dx__)'''
-        g__ = np.stack((abs(i__topleft  - i__bottomright) +
-                        abs(i__topright - i__bottomleft) +
-                        abs(i__left     - i__right) +
-                        abs(i__top      - i__bottom)
-                        ))
+        g__ = np.hypot(dy__, dx__)
 
     # return dert__ with accumulated derivatives:
     if fig:
-        rdert = i__, g__, dy__, dx__, m__, ga__, dy__, dx__
+        rdert = i__, g__, dy__, dx__, m__, ga__, *day__, *dax__
     else:
-        rdert = i__, g__, dy__, dx__
+        rdert = i__, g__, dy__, dx__, m__
 
     return rdert
-
-
-def comp_a_chee(dert__, fga):
-    """
-    cross-comp of a or aga in 2x2 kernels
-    ----------
-    input dert__ : array-like
-    fga : bool
-        If True, dert structure is interpreted as:
-        (g, gg, gdy, gdx, gm, iga, iday, idax)
-        else: (i, g, dy, dx, m)
-    ----------
-    output adert: masked_array of aderts,
-    adert structure is (i, g, dy, dx, m, ga, day, dax, cos_da0, cos_da1)
-    Examples
-    --------
-
-    'specific output'
-    """
-    # input dert = (i,  g,  dy,  dx,  m, ?(ga, day, dax))
-    i__, g__, dy__, dx__, m__ = dert__[0:5]
-
-    if fga:  # input is adert
-        ga__, day__, dax__ = dert__[5:8]
-        a__ = [day__, dax__] / ga__  # similar to calc_a
-
-    else:
-        a__ = [dy__, dx__] / g__  # similar to calc_a
-
-    # this mask section would need further test later with actual input from frame_blobs
-    if isinstance(a__, ma.masked_array):
-        a__.data[a__.mask] = np.nan
-        a__.mask = ma.nomask
-
-    # each shifted a in 2x2 kernel
-    a__topleft = a__[:, :-1, :-1]
-    a__topright = a__[:, :-1, 1:]
-    a__botright = a__[:, 1:, 1:]
-    a__botleft = a__[:, 1:, :-1]
-
-    a_rim__ = np.stack((a__topleft,
-                        a__topright,
-                        a__botright,
-                        a__botleft))
-
-    # preallocate size of arrays
-    sin_da__ = [None] * 2
-    cos_da__ = [None] * 2
-    day__ = [None] * 2
-    day__[0] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
-    day__[1] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
-    dax__ = [None] * 2
-    dax__[0] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
-    dax__[1] = np.zeros((a__topleft.shape[1], a__topleft.shape[2]))
-
-    YCOEF_ = [-1, -1]
-    XCOEF_ = [-1, 1]
-
-    for i in range(2):
-        # opposing difference
-        sin_da__[i], cos_da__[i] = angle_diff(a_rim__[i], a_rim__[i + 2])
-
-        # sine part of day
-        day__[0] += sin_da__[i] * YCOEF_[i]
-        # cosine part of day
-        day__[1] += cos_da__[i]  # no sign based coefficient for cosine part
-        # sine part of dax
-        dax__[0] += sin_da__[i] * XCOEF_[i]
-        # cosine part of dax
-        dax__[1] += cos_da__[i]  # no sign based coefficient for cosine part
-
-
-    ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
-    # angle gradient, a scalar
-
-    # remove last row and column to solve dimension mismatch issue
-    adert__ = ma.stack((i__[:-1, :-1],  # for summation in Dert
-                        g__[:-1, :-1],
-                        dy__[:-1, :-1],
-                        dx__[:-1, :-1],
-                        m__[:-1, :-1],   # for summation in Dert
-                        ga__,
-                        *day__,
-                        *dax__,
-                        cos_da__[0],
-                        cos_da__[1]))
-
-    return adert__
 
 
 def comp_a(dert__, fga):
@@ -333,7 +255,7 @@ def comp_a(dert__, fga):
     'specific output'
     """
 
-    i__, g__, dy__, dx__, m__ = dert__[0:5]
+    i__, g__, dy__, dx__, = dert__[0:4]
 
     if fga:  # input is adert
         ga__, day__, dax__ = dert__[5:8]
@@ -366,7 +288,7 @@ def comp_a(dert__, fga):
     ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
     # angle gradient, a scalar
 
-    adert__ = ma.stack((i__[:-1, :-1], g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1], m__[:-1, :-1],
+    adert__ = ma.stack((i__[:-1, :-1], g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1],
                        ga__, *day__, *dax__, cos_da0__, cos_da1__))
     # i, dy, dx, m is for summation in Dert only?
 
@@ -385,6 +307,7 @@ def angle_diff(a2, a1):
     cos = (sin_1 * cos_1) + (sin_2 * cos_2)
 
     return ma.array([sin, cos])
+
 
 # ----------------------------------------------------------------------
 # -----------------------------------------------------------------------------
