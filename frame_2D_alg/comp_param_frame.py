@@ -96,7 +96,7 @@ def layer_1(dert__, M_sign, G_sign, fga, root_fcr, fig):
         dert__ = comp_r(dert__, fig=0, root_fcr=0)
         fga = 1
 
-    elif M_sign < 0 & G_sign > 0:
+    else:
         dert__ = comp_a(dert__, fga=0)
         root_fcr = 1
 
