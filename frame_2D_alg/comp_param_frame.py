@@ -160,8 +160,6 @@ if __name__ == "__main__":
     print('Done!')
 
     print('Doing first comp...')
-    image = comp_pixel(image)
-    print('Done!')
     frame = image_to_blobs(image)
 
     for blob in frame['blob_']:
