@@ -4,12 +4,12 @@ Requirements: numpy, frame_blobs, intra_comp, utils.
 Note: Since these operations performed only on multivariate variables,
 "__" in variable names will be skipped.
 """
-from CogAlg.frame_2D_alg.frame_blobs import ave_M, image_to_blobs
+import cv2
+
+from CogAlg.frame_2D_alg.frame_blobs import ave, image_to_blobs
 from CogAlg.frame_2D_alg.intra_blob_draft import *
 from CogAlg.frame_2D_alg.intra_comp import *
-from CogAlg.frame_2D_alg.comp_pixel import  comp_pixel
-from CogAlg.frame_2D_alg.utils import imwrite, imread, map_frame_binary
-import cv2
+from CogAlg.frame_2D_alg.utils import imwrite, map_frame_binary
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -91,19 +91,19 @@ def imwrite_fork(dert_, param, Ave, fork_history):
         imwrite(OUTPUT_PATH + fork_history, o)
 
 
-def layer_1(dert__, M_sign, G_sign, fga, root_fcr, fig):
+def layer_1(dert__, M_sign, fga, root_fcr, fig):
     if M_sign > 0:
         dert__ = comp_r(dert__, fig=0, root_fcr=0)
-        fga = 1
+        root_fcr = 1
 
     else:
         dert__ = comp_a(dert__, fga=0)
-        root_fcr = 1
+        fga = 1
 
     return dert__, fga, root_fcr, fig
 
 
-def layer_2(dert__, M_sign, G_sign, fga, root_fcr, fig):
+def layer_2(dert__, M_sign, fga, root_fcr, fig):
     if fga:
         if M_sign > 0:
             dert__ = comp_g(dert__)
@@ -115,13 +115,14 @@ def layer_2(dert__, M_sign, G_sign, fga, root_fcr, fig):
         if M_sign > 0:
             dert__ = comp_r(dert__, fig=0, root_fcr=1)
         else:
+
             dert__ = comp_a(dert__, fga=0)
             fga = 1
 
     return dert__, fga, fig, root_fcr
 
 
-def layer_3(dert__, M_sign, G_sign, fga, root_fcr, fig):
+def layer_3(dert__, M_sign, fga, root_fcr, fig):
     if fga:  # conditional for 1st layer (if comp_aga)
         if fig:
             if M_sign > 0:
@@ -147,7 +148,7 @@ def layer_3(dert__, M_sign, G_sign, fga, root_fcr, fig):
             else:
                 dert__ = comp_r(dert__, fig=1, root_fcr=1)
 
-    return dert__, fga, root_fcr, fig 
+    return dert__, fga, root_fcr, fig
 
 
 # -----------------------------------------------------------------------------
@@ -156,48 +157,35 @@ def layer_3(dert__, M_sign, G_sign, fga, root_fcr, fig):
 if __name__ == "__main__":
     # Initial comp:
     print('Reading image...')
-    image = cv2.imread('images/raccoon.jpg', 0).astype(int)  # #imread(IMAGE_PATH)
+    image = cv2.imread('images/raccoon.jpg', 0).astype(int)
     print('Done!')
 
     print('Doing first comp...')
     frame = image_to_blobs(image)
-    print(frame)
 
     for blob in frame['blob_']:
-        # flags for forking
-        fga = 0
-        root_fcr = 0
-        fig = 0
 
-        blob['dert__'], fga, root_fcr, fig = layer_1(blob['dert__'], blob['Dert']['G'], blob['Dert']['M'],
-                                                     fga, root_fcr, fig)
-        blob['Dert']['M'] = ave_M - blob['Dert']['M']
+        if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
+            # flags for forking
+            fga = 0
+            root_fcr = 0
+            fig = 0
 
-        blob['dert__'], fga, root_fcr, fig = layer_2(blob['dert__'], blob['Dert']['G'], blob['Dert']['M'],
-                                                     fga, root_fcr, fig)
-        blob['Dert']['M'] = ave_M - blob['Dert']['M']
+            blob['dert__'], fga, root_fcr, fig = layer_1(blob['dert__'], blob['Dert']['M'],
+                                                         fga, root_fcr, fig)
+            blob['Dert']['M'] = ave - blob['Dert']['M']
 
-        blob['dert__'], fga, root_fcr, fig = layer_3(blob['dert__'], blob['Dert']['G'], blob['Dert']['M'],
-                                                     fga, root_fcr, fig)
+            blob['dert__'], fga, root_fcr, fig = layer_2(blob['dert__'], blob['Dert']['M'],
+                                                         fga, root_fcr, fig)
+            blob['Dert']['M'] = ave - blob['Dert']['M']
 
-    frame = map_frame_binary(frame, sign_map={1: 'white', 0: 'black'})
-    imwrite("./images/test_intra_comp.bmp", frame)
+            blob['dert__'], fga, root_fcr, fig = layer_3(blob['dert__'], blob['Dert']['M'],
+                                                         fga, root_fcr, fig)
+
+    print('Mapping...')
+    frame = map_frame_binary(frame)
+    imwrite("images/test_intra_comp.bmp", frame)
     print('Done!')
-
-    '''
-    # Recursive comps:
-    recursive_comp(dert_=dert_,
-                   rng=1,
-                   fca=1,
-                   nI=2,
-                   Ave=ave,
-                   fork_history="i",
-                   depth=MAX_DEPTH)
-    print('Done!')
-
-    print('Terminating...')'''
 
 # ----------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-
-
