@@ -47,8 +47,8 @@ from utils import *
 # Adjustable parameters:
 
 kwidth = 3  # smallest input-centered kernel: frame | blob shrink by 2 pixels per row
-ave_G = 15  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
-ave_M = 25 # main criterion for for fork
+ave_g = 15  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
+ave = 25 # main criterion for for fork
 
 # ----------------------------------------------------------------------------------------------------------------------------------------
 # Functions
@@ -91,15 +91,13 @@ def form_P_(dert_):  # horizontal clustering and summation of dert params into P
 
     P_ = deque()  # row of Ps
     I, G, Dy, Dx, M, L, x0 = *dert_[0], 1, 0  # initialize P params with 1st dert params
-    G -= ave_G
-    M -= ave_M
+    G -= ave_g
+    M -= ave
     _s = G > 0  # sign
     for x, (p, g, dy, dx, m) in enumerate(dert_[1:], start=1):
-        vg = g - ave_G  # deviation of g
-        dm = ave_M - m
-        '''
-        sign_m = dm > 0
-        '''
+        vg = g - ave_g  # deviation of g
+        dm = ave - m
+
         # we still use sign by gradient for clustering in P, or should change it for sign by M?
         s = vg > 0
         if s != _s:
@@ -297,52 +295,52 @@ def accum_Dert(Dert: dict, **params) -> None:
 # -----------------------------------------------------------------------------
 # Main
 
-#if __name__ == '__main__':
-#    import argparse
-#
-#    argument_parser = argparse.ArgumentParser()
-#    argument_parser.add_argument('-i', '--image', help='path to image file', default='./images//raccoon.jpg')
-#    arguments = vars(argument_parser.parse_args())
-#    image = imread(arguments['image'])
-#
-#    start_time = time()
-#    frame = image_to_blobs(image)
-#    from intra_blob_draft import *
-#
-#
-#    intra=1
-#    if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
-#
-#        from intra_blob_draft import *
-#        deep_frame = frame, frame  # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
-#
-#        for blob in frame['blob_']:
-#            if blob['sign']:
-#                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
-#                    intra_blob(blob, rdn=1, rng=1.41, fig=0, fca=1, fcr=0, fga=0, fc3=0)
-#                    # +G blob' comp_a, form 2x2 aderts = ga, day, dax, -> comp_ga if +Ga, else comp_g if -Ga
-#
-#            # elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
-#            #         intra_blob(blob, rdn=1, rng=1, fig=0, fca=0, fcr=1, fga=0)
-#            #         # -G blob' comp_r, form 3x3 rderts = dert, -> comp_a if +G, else comp_rng if -G
-#                    '''
-#                    with feedback:
-#                    dert__ = comp_a|r(blob['dert__'], rng=1)
-#                    deep_frame['layer_'] = intra_blob(blob, dert__, rng=3, rdn=1, fig=0, fca=0)
-#                    deep_frame['blob_'].append(blob)  # extended by cluster_eval
-#                    deep_frame['params'][1:] += blob['params'][1:]  # incorrect, for selected blob params only?
-#                    '''
-#            # else no intra_blob call
-#
-#    end_time = time() - start_time
-#    print(end_time)
-#
-#    # DEBUG -------------------------------------------------------------------
-#    imwrite("./images/gblobs.bmp",
-#    map_frame_binary(frame,
-#              sign_map={
-#                  1: WHITE,  # 2x2 gblobs
-#                  0: BLACK
-#              }))
-#
-#    # END DEBUG ---------------------------------------------------------------
+if __name__ == '__main__':
+    import argparse
+
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument('-i', '--image', help='path to image file', default='./images//raccoon.jpg')
+    arguments = vars(argument_parser.parse_args())
+    image = imread(arguments['image'])
+
+    start_time = time()
+    frame = image_to_blobs(image)
+    from intra_blob_draft import *
+
+
+    intra=1
+    if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
+
+        from intra_blob_draft import *
+        deep_frame = frame, frame  # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
+
+        for blob in frame['blob_']:
+            if blob['sign']:
+                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
+                    intra_blob(blob, rdn=1, rng=1.41, fig=0, fca=1, fcr=0, fga=0, fc3=0)
+                    # +G blob' comp_a, form 2x2 aderts = ga, day, dax, -> comp_ga if +Ga, else comp_g if -Ga
+
+            # elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
+            #         intra_blob(blob, rdn=1, rng=1, fig=0, fca=0, fcr=1, fga=0)
+            #         # -G blob' comp_r, form 3x3 rderts = dert, -> comp_a if +G, else comp_rng if -G
+                    '''
+                    with feedback:
+                    dert__ = comp_a|r(blob['dert__'], rng=1)
+                    deep_frame['layer_'] = intra_blob(blob, dert__, rng=3, rdn=1, fig=0, fca=0)
+                    deep_frame['blob_'].append(blob)  # extended by cluster_eval
+                    deep_frame['params'][1:] += blob['params'][1:]  # incorrect, for selected blob params only?
+                    '''
+            # else no intra_blob call
+
+    end_time = time() - start_time
+    print(end_time)
+
+    # DEBUG -------------------------------------------------------------------
+    imwrite("./images/gblobs.bmp",
+    map_frame_binary(frame,
+              sign_map={
+                  1: WHITE,  # 2x2 gblobs
+                  0: BLACK
+              }))
+
+    # END DEBUG ---------------------------------------------------------------
