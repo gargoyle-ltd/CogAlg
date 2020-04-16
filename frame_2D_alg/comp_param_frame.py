@@ -147,7 +147,7 @@ def layer_3(dert__, M_sign, G_sign, fga, root_fcr, fig):
             else:
                 dert__ = comp_r(dert__, fig=1, root_fcr=1)
 
-    return dert__
+    return dert__, fga, root_fcr, fig 
 
 
 # -----------------------------------------------------------------------------
@@ -161,6 +161,7 @@ if __name__ == "__main__":
 
     print('Doing first comp...')
     frame = image_to_blobs(image)
+    print(frame)
 
     for blob in frame['blob_']:
         # flags for forking
