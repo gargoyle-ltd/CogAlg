@@ -216,24 +216,26 @@ def comp_r(dert__, fig, root_fcr):
 
         # calculating match
         # TODO need to make match sparsed to add values from previous fork
-        m__ += (np.minimum(i__center, (i__topleft * dat__[1][1]))
+        m__ += (np.minimum(i__center, (i__topleft * dat__[0][1]))
                 + np.minimum(i__center, (i__top * dat__[1][1]))
-                + np.minimum(i__center, (i__topright * dat__[1][1]))
-                + np.minimum(i__center, (i__right * dat__[1][1]))
-                + np.minimum(i__center, (i__bottomright * dat__[1][1]))
-                + np.minimum(i__center, (i__bottom * dat__[1][1]))
-                + np.minimum(i__center, (i__bottomleft * dat__[1][1]))
-                + np.minimum(i__center, (i__left * dat__[1][1])))
+                + np.minimum(i__center, (i__topright * dat__[2][1]))
+                + np.minimum(i__center, (i__right * dat__[3][1]))
+                + np.minimum(i__center, (i__bottomright * dat__[4][1]))
+                + np.minimum(i__center, (i__bottom * dat__[5][1]))
+                + np.minimum(i__center, (i__bottomleft * dat__[6][1]))
+                + np.minimum(i__center, (i__left * dat__[7][1]))
+                )
 
         # tuple of cosine differences per direction:
-        dt__ = np.stack(((i__center - i__topleft * dat__[1][1]),
+        dt__ = np.stack(((i__center - i__topleft * dat__[0][1]),
                          (i__center - i__top * dat__[1][1]),
-                         (i__center - i__topright * dat__[1][1]),
-                         (i__center - i__right * dat__[1][1]),
-                         (i__center - i__bottomright * dat__[1][1]),
-                         (i__center - i__bottom * dat__[1][1]),
-                         (i__center - i__bottomleft * dat__[1][1]),
-                         (i__center - i__left * dat__[1][1])))
+                         (i__center - i__topright * dat__[2][1]),
+                         (i__center - i__right * dat__[3][1]),
+                         (i__center - i__bottomright * dat__[4][1]),
+                         (i__center - i__bottom * dat__[5][1]),
+                         (i__center - i__bottomleft * dat__[6][1]),
+                         (i__center - i__left * dat__[7][1])
+                         ))
 
         for d__, YCOEF, XCOEF in zip(dt__, YCOEFs, XCOEFs):  # accumulate in prior-rng dy, dx:
 
