@@ -128,6 +128,7 @@ def comp_r(dert__, fig, root_fcr):
             m__ = np.zeros((i__center.shape[0], i__center.shape[1]))  # row, column
             day__ = np.zeros((a__center.shape[0], a__center.shape[1], a__center.shape[2]))
             dax__ = np.zeros((a__center.shape[0], a__center.shape[1], a__center.shape[2]))
+            m__ = np.zeros((i__center.shape[0], i__center.shape[1]))
 
         for dat_, YCOEF, XCOEF in zip(dat__, YCOEFs, XCOEFs):
             '''
@@ -163,6 +164,7 @@ def comp_r(dert__, fig, root_fcr):
                          (i__center - i__bottomleft * dat__[6][1]),
                          (i__center - i__left * dat__[7][1])
                          ))
+
         for d__, YCOEF, XCOEF in zip(dt__, YCOEFs, XCOEFs):
             dy__ += d__ * YCOEF  # y-decomposed center-to-rim difference
             dx__ += d__ * XCOEF  # x-decomposed center-to-rim difference
@@ -194,8 +196,9 @@ def comp_a(dert__, fga):
     i__, g__, dy__, dx__, = dert__[0:4]
 
     if fga:  # input is adert
-        ga__, day__, dax__ = dert__[-1]
-        a__ = [day__, dax__] / ga__
+        ga__, day__, dax__ = dert__[5:8]
+        a__ = [day__, dax__] / ga__  # similar to calc_a
+
     else:
         a__ = [dy__, dx__] / g__  # similar to calc_a
 
@@ -205,6 +208,7 @@ def comp_a(dert__, fga):
     a__botright = a__[:, 1:, 1:]
     a__botleft = a__[:, 1:, :-1]
 
+
     # diagonal angle differences:
     sin_da0__, cos_da0__ = angle_diff(a__topleft, a__botright)
     sin_da1__, cos_da1__ = angle_diff(a__topright, a__botleft)
@@ -212,6 +216,7 @@ def comp_a(dert__, fga):
     ma__ = np.hypot(sin_da0__, cos_da0__) + np.hypot(sin_da1__, cos_da1__)
     # ma = SAD: angle variation is inverse measure of angle match
     # need to covert sin and cos da to 0->2 range?
+    ma__ = np.hypot(sin_da0__, cos_da0__) + np.hypot(sin_da1__, cos_da1__)
 
     day__ = (-sin_da0__ - sin_da1__), (cos_da0__ + cos_da1__)
     # angle change in y, sines are sign-reversed because da0 and da1 are top-down, no reversal in cosines
@@ -225,15 +230,14 @@ def comp_a(dert__, fga):
     ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
     # angle gradient, a scalar, to evaluate for comp_aga
 
+
     adert__ = ma.stack((i__[:-1, :-1],  # for summation in Dert
                         g__[:-1, :-1],  # for summation in Dert
                         dy__[:-1, :-1],  # passed on as idy
                         dx__[:-1, :-1],  # passed on as idx  # no use for m__[:-1, :-1]?
                         ga__,
-                        day__[0],
-                        day__[1],
-                        dax__[0],
-                        dax__[1],
+                        *day__,
+                        *dax__,
                         ma__,
                         cos_da0__,
                         cos_da1__
