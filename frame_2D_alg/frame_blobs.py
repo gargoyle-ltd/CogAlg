@@ -2,7 +2,7 @@ from time import time
 from collections import deque, defaultdict
 import numpy as np
 from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
-from CogAlg.frame_2D_alg.comp_pixelutils import *
+from CogAlg.frame_2D_alg.utils import *
 
 '''
     2D version of first-level core algorithm will have frame_blobs, intra_blob (recursive search within blobs), and comp_P.
