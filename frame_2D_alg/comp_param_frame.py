@@ -103,7 +103,9 @@ def layer_1(dert__, M_sign, fga, root_fcr, fig):
     return dert__, fga, root_fcr, fig
 
 
+
 def layer_2(dert__, M_sign, fga, root_fcr, fig):
+
     if fga:
         if M_sign > 0:
             dert__ = comp_g(dert__)
@@ -115,7 +117,6 @@ def layer_2(dert__, M_sign, fga, root_fcr, fig):
         if M_sign > 0:
             dert__ = comp_r(dert__, fig=0, root_fcr=1)
         else:
-
             dert__ = comp_a(dert__, fga=0)
             fga = 1
 
@@ -162,29 +163,31 @@ if __name__ == "__main__":
 
     print('Doing first comp...')
     frame = image_to_blobs(image)
+    counter = 0
+    for blob__ in frame['blob__']:
+        counter += 1
 
-    for blob in frame['blob_']:
-
-        if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
+        if blob__['Dert']['G'] > aveB:
             # flags for forking
+            print('blob number' + str(counter))
             fga = 0
             root_fcr = 0
             fig = 0
 
-            blob['dert__'], fga, root_fcr, fig = layer_1(blob['dert__'], blob['Dert']['M'],
+            blob__['dert__'], fga, root_fcr, fig = layer_1(blob__['dert__'], blob__['Dert']['M'],
                                                          fga, root_fcr, fig)
-            blob['Dert']['M'] = ave - blob['Dert']['M']
+            blob__['Dert']['M'] = ave - blob__['Dert']['M']
 
-            blob['dert__'], fga, root_fcr, fig = layer_2(blob['dert__'], blob['Dert']['M'],
+            blob__['dert__'], fga, root_fcr, fig = layer_2(blob__['dert__'], blob__['Dert']['M'],
                                                          fga, root_fcr, fig)
-            blob['Dert']['M'] = ave - blob['Dert']['M']
+            blob__['Dert']['M'] = ave - blob__['Dert']['M']
 
-            blob['dert__'], fga, root_fcr, fig = layer_3(blob['dert__'], blob['Dert']['M'],
+            blob__['dert__'], fga, root_fcr, fig = layer_3(blob__['dert__'], blob__['Dert']['M'],
                                                          fga, root_fcr, fig)
 
     print('Mapping...')
     frame = map_frame_binary(frame)
-    imwrite("images/test_intra_comp.bmp", frame)
+    imwrite("images/test_intra_comp3.bmp", frame)
     print('Done!')
 
 # ----------------------------------------------------------------------
