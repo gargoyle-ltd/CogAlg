@@ -3,90 +3,93 @@ from collections import deque, defaultdict
 from itertools import groupby, starmap, zip_longest
 import numpy as np
 import numpy.ma as ma
-from intra_comp import *
-from utils import pairwise, flatten
+from CogAlg.frame_2D_alg.intra_comp import *
+from CogAlg.frame_2D_alg.utils import pairwise, flatten
 from functools import reduce
+
 '''
     2D version of 1st-level algorithm is a combination of frame_blobs, intra_blob, and comp_P: optional raster-to-vector conversion.
-    
+
     intra_blob recursively evaluates each blob for one of three forks of extended internal cross-comparison and sub-clustering:
     angle cross-comp,
-    der+: incremental derivation comp in high-variation edge areas of +vg: positive deviation of gradient triggers comp_g, 
-    rng+: incremental range comp in low-variation flat areas of +v--vg: positive deviation of negated -vg triggers comp_r.
+    der+: incremental derivation cross-comp in high-variation edge areas of +vg: positive deviation of gradient triggers comp_g, 
+    rng+: incremental range cross-comp in low-variation flat areas of +v--vg: positive deviation of negated -vg triggers comp_r.
     Each adds a layer of sub_blobs per blob.  
     Please see diagram: https://github.com/boris-kz/CogAlg/blob/master/frame_2D_alg/Illustrations/intra_blob_forking_scheme.png
 
-    Fork structure:
-    fcr, # flag comp rng, also clustering criterion in dert and Dert: g in der+ fork, i+m in rng+ fork? 
-    fca, # flag comp angle, clustering by ga: gradient of angle?
-    fga, # flag comp angle of ga vs. angle of g
-    fig, # flag input is g
-    fc3, # flag comp 3x3
-    rdn, # redundancy to higher layers
-    rng, # comparison range
-    Dert, sub_blob_
-    
     Blob structure, for all layers of blob hierarchy:
+
     root_blob,  # reference for feedback of blob Dert params and sub_blob_, up to frame
-    Dert = I, G, Dy, Dx, M, if comp_angle: + [Ga, Day, Dax], S (area), Ly (vertical dimension)
+    Dert = I, G, Dy, Dx, M, comp_a: + [Ga, Dyy, Dxy, Dyx, Dxx], S (area), Ly (vertical dimension)
     # I: input, G: gradient, (Dy, Dx): vertical and lateral Ds, M: match, Ga: angle G, Day, Dax: angle Ds  
     sign, 
     map,  # boolean map of blob, to compute overlap in comp_blob
     box,  # boundary box: y0, yn, x0, xn; selective map, box in lower Layers
-    dert__, # comp r | comp_g -> i, g, dy, dx, m; comp_a -> i, g, dy, dx, m, ga, day, dax 
+    dert__, # comp r | comp_g -> i, g, dy, dx, m; comp_a -> i, g, dy, dx, m, ga, day, dax, da0, da1 
     stack_[ stack_params, Py_ [(P_params, dert_)]]: refs down blob formation tree, in vertical (horizontal) order
-    layer_  # [(fork_params, Dert, sub_blob_)]: list of layers across sub_blob derivation tree, nested mixed-fork deep layers
-'''
 
+    # fork structure of next layer:
+    fcr, # flag comp rng, also clustering criterion in dert and Dert: g in der+ fork, i+m in rng+ fork? 
+    fca, # flag comp angle, clustering by ga: gradient of angle?
+    fga, # flag comp angle of ga vs. angle of g
+    fig, # flag input is gradient
+    rdn, # redundancy to higher layers
+    rng, # comp range
+    layer_ # [(Dert, sub_blob_)]: list of layers across sub_blob derivation tree
+           # deeper layers are nested, multiple forks: no single set of fork params?
+'''
 # filters, All *= rdn:
 
-ave  = 50  # fixed cost per dert, from average g|m, reflects blob definition cost, may be different for comp_a?
+ave = 50  # fixed cost per dert, from average m, reflects blob definition cost, may be different for comp_a?
 aveB = 10000  # fixed cost per intra_blob comp and clustering
 
-# -----------------------------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------------
 # functions, ALL WORK-IN-PROGRESS:
 
-def intra_blob(blob__, rdn, rng, fig, fca, fcr, fga):
-
+def intra_blob(blob, rdn, rng, fig, fca, fcr, fga):
     # recursive input rng+ | der+ | angle cross-comp within a blob
     # flags: fca: comp angle, fga: comp angle of ga, fig: input is g, fcr: comp over rng+
 
     if fca:
-        dert__ = comp_a(blob__['dert__'], fga)  # form ga blobs, evaluate for comp_aga | comp_g:
-        cluster_derts(blob__, dert__, ave*rdn, fca, fcr, fig=0)  # cluster by sign of crit=ga -> ga_sub_blobs
+        dert__ = comp_a(blob['dert__'], fga)  # -> ma sub_blobs evaluate for comp_g | comp_aga:
+        cluster_derts(blob, dert__, ave * rdn, fca, fcr, fig=0)
 
-        for sub_blob in blob__['blob__']:  # eval intra_blob: if disoriented g: comp_aga, else comp_g
+        for sub_blob in blob['blob_']:  # eval intra_blob: if disoriented g: comp_aga, else comp_g
             if sub_blob['sign']:
-                if sub_blob['Dert']['Ga'] > aveB * rdn:
-                    # +Ga -> comp_aga -> dert + gaga, ga_day, ga_dax:
-                    intra_blob(sub_blob, rdn+1, rng=1, fig=1, fca=1, fcr=0, fga=1)
+                if sub_blob['Dert']['Ma'] > aveB * rdn:
+                    # +Ma -> comp_g -> dert = g, gg, gdy, gdx, gm:
+                    intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fca=0, fcr=0, fga=1)  # fga for comp_agg
 
-            elif -sub_blob['Dert']['Ga'] > aveB * rdn:
-                # -Ga -> comp_g -> dert = g, gg, gdy, gdx, gm:
-                intra_blob(sub_blob, rdn+1, rng=1, fig=1, fca=0, fcr=0, fga=1)  # fga passed to comp_agg
+            elif sub_blob['Dert']['Ga'] > aveB * rdn:
+                # +Ga -> comp_aga -> dert + gaga, ga_day, ga_dax:
+                intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fca=1, fcr=0, fga=1)
     else:
-        if fcr: dert__ = comp_r(blob__['dert__'], fig, blob__['root']['fcr'])  # 3x3, sparse to avoid center overlap
-        else:   dert__ = comp_g(blob__['dert__'])
+        if fcr:
+            dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  # -> m sub_blobs
+        else:
+            dert__ = comp_g(blob['dert__'])  # -> g sub_blobs:
 
-        cluster_derts(blob__, dert__, ave*rdn, fca, fcr, fig)  # cluster by sign of crit=g -> g_sub_blobs
+        cluster_derts(blob, dert__, ave * rdn, fca, fcr, fig)
         # feedback: root['layer_'] += [[(lL, fig, fcr, rdn, rng, blob['sub_blob_'])]]  # 1st sub_layer
 
-        for sub_blob in blob__['blob__']:  # eval intra_blob comp_a | comp_rng if low gradient
+        for sub_blob in blob['blob_']:  # eval intra_blob comp_a | comp_rng if low gradient
             if sub_blob['sign']:
-                if sub_blob['Dert']['G'] > aveB * rdn:
-                    # +G -> comp_a -> dert + a, ga=0, day=0, dax=0:
-                    intra_blob(sub_blob, rdn+1, rng=1, fig=1, fca=1, fcr=0, fga=0)
+                if sub_blob['Dert']['M'] > aveB * rdn:
+                    # +M -> comp_r -> dert with accumulated derivatives:
+                    intra_blob(sub_blob, rdn + 1, rng + 1, fig=fig, fca=0, fcr=1, fga=0)  # fga for comp_agr
 
-            elif -sub_blob['Dert']['G'] > aveB * rdn:
-                # -G -> comp_r -> dert with accumulated derivatives:
-                intra_blob(sub_blob, rdn+1, rng+1, fig=fig, fca=0, fcr=1, fga=0)
-                # fga is passed to comp_agr
+            elif sub_blob['Dert']['G'] > aveB * rdn:
+                # +G -> comp_a -> dert + a, ga=0, day=0, dax=0:
+                intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fca=1, fcr=0, fga=0)
     '''
     also cluster_derts(crit=gi): abs_gg (no * cos(da)) -> abs_gblobs, no eval by Gi?
     with feedback:
-    for sub_blob in blob['blob__']:
+    for sub_blob in blob['blob_']:
         blob['layer_'] += intra_blob(sub_blob, rdn + 1 + 1 / lL, rng, fig, fca)  # redundant to sub_blob
     '''
+
+
 # constants:
 
 iPARAMS = "I", "G", "Dy", "Dx", "M"  # formed by comp_pixel
@@ -102,31 +105,34 @@ S_PARAM_KEYS = iPARAMS + S_PARAMS
 aS_PARAM_KEYS = aPARAMS + S_PARAMS
 
 
-def cluster_derts(blob__, dert__, Ave, fca, fcr, fig):  # clustering crit is always g in dert[1], fder is a sign
+def cluster_derts(blob, dert__, Ave, fca, fcr, fig):  # clustering crit is always g in dert[1], fder is a sign
 
-    blob__['layer_'][0][0] = dict(I=0, G=0, Dy=0, Dx=0, M=0, Ga=0, Dyy=0, Dxy=0, Dyx=0, Dxx=0, S=0, Ly=0,
+    blob['layer_'][0][0] = dict(I=0, G=0, Dy=0, Dx=0, M=0, Ga=0, Dyy=0, Dxy=0, Dyx=0, Dxx=0, Ma=0, S=0, Ly=0,
                                 sub_blob_=[])  # to fill with fork params and sub_sub_blobs
-                                # initialize first sub_blob in first layer
+    # initialize first sub_blob in first layer
 
     P__ = form_P__(dert__, Ave, fca, fcr, fig)  # horizontal clustering
     P_ = scan_P__(P__)
     stack_ = form_stack_(P_)  # vertical clustering
-    sub_blob_ = form_blob_(stack_, blob__['fork_'])  # with feedback to root_fork at blob['fork_']
+    sub_blob_ = form_blob_(stack_, blob['fork_'])  # with feedback to root_fork at blob['fork_']
 
     return sub_blob_
 
+
 # clustering functions, out of date:
-#---------------------------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------
 
 def form_P__(dert__, Ave, fca, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__, in horizontal ) vertical order
 
     # compute value (clustering criterion) per each intra_comp fork, crit__ and dert__ are 2D arrays:
     if fca:
-        crit__ = Ave - dert__[5, :, :]  # comp_a output eval by inverted ga deviation, add a coeff to Ave?
+        crit__ = Ave - dert__[-1, :, :]  # comp_a output eval by inverse deviation of ma, add a coeff to Ave?
         param_keys = aP_PARAM_KEYS  # comp_a output params
     elif fcr:
-        if fig: crit__ = dert__[0 + 4, :, :] - Ave  # comp_r output eval by i + m, accumulated over comp range
-        else:   crit__ = Ave - dert__[1, :, :]  # comp_r output eval by inverted g, accumulated over comp range
+        if fig:
+            crit__ = dert__[0 + 4, :, :] - Ave  # comp_r output eval by i + m, accumulated over comp range
+        else:
+            crit__ = Ave - dert__[1, :, :]  # comp_r output eval by inverted g, accumulated over comp range
         param_keys = P_PARAM_KEYS
     else:
         crit__ = dert__[1, :, :] - Ave  # comp_g output eval by g
@@ -135,25 +141,25 @@ def form_P__(dert__, Ave, fca, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__
     # Cluster dert__ into Pdert__:
     s_x_L__ = [*map(
         lambda crit_:  # Each line
-            [(sign, next(group)[0], len(list(group)) + 1)  # (s, x, L)
-             for sign, group in groupby(enumerate(crit_ > 0),
-                                        op.itemgetter(1))  # (x, s): return s
-             if sign is not ma.masked],  # Ignore gaps.
+        [(sign, next(group)[0], len(list(group)) + 1)  # (s, x, L)
+         for sign, group in groupby(enumerate(crit_ > 0),
+                                    op.itemgetter(1))  # (x, s): return s
+         if sign is not ma.masked],  # Ignore gaps.
         crit__,  # blob slices in line
     )]
-    Pdert__ = [[dert_[:, x : x+L].T for s, x, L in s_x_L_]
-                for dert_, s_x_L_ in zip(dert__.swapaxes(0, 1), s_x_L__)]
+    Pdert__ = [[dert_[:, x: x + L].T for s, x, L in s_x_L_]
+               for dert_, s_x_L_ in zip(dert__.swapaxes(0, 1), s_x_L__)]
 
     # Accumulate Dert = P param_keys:
     PDert__ = map(lambda Pdert_:
-                       map(lambda Pdert_: Pdert_.sum(axis=0),
-                           Pdert_),
-                   Pdert__)
+                  map(lambda Pdert_: Pdert_.sum(axis=0),
+                      Pdert_),
+                  Pdert__)
     P__ = [
         [
-            dict(zip( # Key-value pairs:
+            dict(zip(  # Key-value pairs:
                 param_keys,
-                [*PDerts, L, x+x0, Pderts, [], [], y, s]  # why Pderts?
+                [*PDerts, L, x + x0, Pderts, [], [], y, s]  # why Pderts?
             ))
             for PDerts, Pderts, (s, x, L) in zip(*Pparams_)
         ]
@@ -380,7 +386,7 @@ def form_blob_(seg_, root_fork):
             else (*gDERT_PARAMS, "S", "Ly")
 
     # Form blob:
-    blob__ = []
+    blob_ = []
     for blob_seg_ in cluster_segments(seg_):
         # Compute boundary box in batch:
         y0, yn, x0, xn = starmap(
@@ -407,7 +413,7 @@ def form_blob_(seg_, root_fork):
         dert__ = root_fork['dert__'][:, y0:yn, x0:xn]
         dert__.mask[:] = mask
 
-        blob__ = dict(
+        blob = dict(
             Dert=dict(
                 zip(
                     Dert_keys,
@@ -423,11 +429,11 @@ def form_blob_(seg_, root_fork):
             root_fork=root_fork,
             fork_=defaultdict(list),
         )
-        blob__.append(blob__)
+        blob_.append(blob)
 
         # feedback(blob)
 
-    return blob__
+    return blob_
 
 
 def cluster_segments(seg_):
@@ -457,24 +463,25 @@ def cluster_segments(seg_):
     return blob_seg__
 
 
-def feedback_old(blob__, sub_fork_type=None):  # Add each Dert param to corresponding param of recursively higher root_blob.
+def feedback_old(blob,
+                 sub_fork_type=None):  # Add each Dert param to corresponding param of recursively higher root_blob.
 
-    root_blob = blob__['root_blob']
+    root_blob = blob['root_blob']
     if root_blob is None:  # Stop recursion.
         return
-    fork_type = blob__['fork_type']
+    fork_type = blob['fork_type']
 
     # blob Layers is deeper than root_blob Layers:
-    len_sub_layers = max(0, 0, *map(len, blob__['forks'].values()))
+    len_sub_layers = max(0, 0, *map(len, blob['forks'].values()))
     while len(root_blob['forks'][fork_type]) <= len_sub_layers:
         root_blob['forks'][fork_type].append((0, 0, 0, 0, 0, 0, []))
 
     # First layer accumulation:
-    G, M, Dy, Dx, L, Ly = blob__['Dert'].values()
+    G, M, Dy, Dx, L, Ly = blob['Dert'].values()
     Gr, Mr, Dyr, Dxr, Lr, Lyr, sub_blob_ = root_blob['forks'][fork_type][0]
     root_blob['forks'][fork_type][0] = (
         Gr + G, Mr + M, Dyr + Dy, Dxr + Dx, Lr + L, Lyr + Ly,
-        sub_blob_ + [blob__],
+        sub_blob_ + [blob],
     )
 
     # Accumulate deeper layers:
@@ -486,7 +493,7 @@ def feedback_old(blob__, sub_fork_type=None):  # Add each Dert param to correspo
             # Mapped iterables:
             zip(
                 root_blob['forks'][fork_type][1:],
-                blob__['forks'][sub_fork_type][:],
+                blob['forks'][sub_fork_type][:],
             ),
         )]
     # Dert-only numpy.ndarray equivalent: (no sub_blob_ accumulation)
@@ -495,9 +502,9 @@ def feedback_old(blob__, sub_fork_type=None):  # Add each Dert param to correspo
     feedback(root_blob, fork_type)
 
 
-def feedback(blob__, fork=None):  # Add each Dert param to corresponding param of recursively higher root_blob.
+def feedback(blob, fork=None):  # Add each Dert param to corresponding param of recursively higher root_blob.
 
-    root_fork = blob__['root_fork']
+    root_fork = blob['root_fork']
 
     # fork layers is deeper than root_fork Layers:
     if fork is not None:
