@@ -143,7 +143,7 @@ def comp_r(dert__, fig, root_fcr):
         '''
         accumulate match (cosine similarity) in prior-rng (3x3 -> 5x5 -> 9x9) m:
         '''
-        m__ += (np.minimum(i__center, (i__topleft * dat__[0][1]))
+        m__ +=   (np.minimum(i__center, (i__topleft * dat__[0][1]))
                 + np.minimum(i__center, (i__top * dat__[1][1]))
                 + np.minimum(i__center, (i__topright * dat__[2][1]))
                 + np.minimum(i__center, (i__right * dat__[3][1]))
@@ -192,6 +192,7 @@ def comp_a(dert__, fga):
     if fga: dert = (g, gg, dgy, dgx, gm, ?(iga, iday, idax)
     else: dert = (i, g, dy, dx, ?m)
     '''
+
     dert__ = shape_check(dert__)  # remove derts of incomplete kernels
     i__, g__, dy__, dx__, = dert__[0:4]
 
@@ -208,14 +209,34 @@ def comp_a(dert__, fga):
     a__botright = a__[:, 1:, 1:]
     a__botleft = a__[:, 1:, :-1]
 
+    if fga:
+        # day = [sin1, cos1]; dax = [sin2, cos2] - >
+        # sin1 = [sin11, cos11]; cos1 = [sin12, cos12];
+        # sin2 = [sin21, cos21]; cos2 = [sin22, cos22];
 
-    # diagonal angle differences:
-    sin_da0__, cos_da0__ = angle_diff(a__topleft, a__botright)
-    sin_da1__, cos_da1__ = angle_diff(a__topright, a__botleft)
+        # computing as sepatate angles:
 
-    ma__ = np.hypot(sin_da0__, cos_da0__) + np.hypot(sin_da1__, cos_da1__)
-    # ma = SAD: angle variation is inverse measure of angle match
-    # need to covert sin and cos da to 0->2 range?
+        sin_da0__, cos_da0__ = angle_diff(day__[0], dax__[0])
+        sin_da1__, cos_da1__ = angle_diff(day__[1], dax__[1])
+
+        # or we can compute without angle_diff as one angle [sin_da, cos_da]
+        # it`s similar formula as in angle_diff but higher level
+        # sin_da = ([day[1][0], day[1][1]] * [dax[0][0], dax[0][1]]) - ([day[0][0], day[0][1]] * [dax[1][0], dax[1][1]])
+        # cos_da = ([day[0][0], day[0][1]] * [day[1][0], day[0][1]]) - ([dax[0][0], dax[0][1]] * [dax[1][0], dax[1][1]])
+
+        # do we compute other values as we always compute in comp_a?
+        # we will have to save day and dax as 4 comparands, how will it be?
+
+        #  ma__ = np.hypot(sin_da0__, cos_da0__) + np.hypot(sin_da1__, cos_da1__)
+        #  day__ = (-sin_da0__ - sin_da1__), (cos_da0__ + cos_da1__)
+        #  dax__ = (-sin_da0__ + sin_da1__), (cos_da0__ + cos_da1__)
+
+
+    else:
+        # diagonal angle differences:
+        sin_da0__, cos_da0__ = angle_diff(a__topleft, a__botright)
+        sin_da1__, cos_da1__ = angle_diff(a__topright, a__botleft)
+
     ma__ = np.hypot(sin_da0__, cos_da0__) + np.hypot(sin_da1__, cos_da1__)
 
     day__ = (-sin_da0__ - sin_da1__), (cos_da0__ + cos_da1__)
@@ -223,10 +244,7 @@ def comp_a(dert__, fga):
 
     dax__ = (-sin_da0__ + sin_da1__), (cos_da0__ + cos_da1__)
     # angle change in x, positive sign is right-to-left, so only sin_da0__ is sign-reversed
-    '''
-    sin(-θ) = -sin(θ), cos(-θ) = cos(θ): 
-    sin(da) = -sin(-da), cos(da) = cos(-da) => (sin(-da), cos(-da)) = (-sin(da), cos(da))
-    '''
+
     ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
     # angle gradient, a scalar, to evaluate for comp_aga
 
@@ -250,6 +268,7 @@ def comp_a(dert__, fga):
 
 
 def angle_diff(a2, a1):
+
     sin_1, cos_1 = a1[:]
     sin_2, cos_2 = a2[:]
 
