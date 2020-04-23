@@ -47,57 +47,76 @@ aveB = 10000  # fixed cost per intra_blob comp and clustering
 # --------------------------------------------------------------------------------------------------------------
 # functions, ALL WORK-IN-PROGRESS:
 
-def intra_blob(blob, rdn, rng, fig, fcr):  # recursive input rng+ | der+ cross-comp in a blob
+def intra_blob(blob, rdn, rng, fig, fcr, counter):  # recursive input rng+ | der+ cross-comp in a blob
     # flags: fca: comp angle, fga: comp angle of ga, fig: input is g, fcr: comp over rng+
 
-    if fcr: dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  #-> m sub_blobs
-    else:   dert__ = comp_g(blob['dert__'])  #-> g sub_blobs:
+    # here might be a counter for layers? it might be for each blob separate, or as input, because the function is recursive
+    # and if we add counter in for loop it will count the sub_blobs. The easiest was is to make the input counter = 0
+    # and add +1 on every call
 
-    cluster_derts(blob, dert__, ave*rdn, fcr, fig)
+    counter = counter + 1
+    if fcr:
+        dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  # -> m sub_blobs
+    else:
+        dert__ = comp_g(blob['dert__'])  # -> g sub_blobs:
+
+    cluster_derts(blob, dert__, ave * rdn, fcr, fig)
+
+    # when there is an Ave in parameters it might change on every iteration, right?
+    # it might become smaller for sub_blobs?
+
     # feedback: root['layer_'] += [[(lL, fig, fcr, rdn, rng, blob['sub_blob_'])]]  # 1st sub_layer
 
     for sub_blob in blob['blob_']:  # eval intra_blob comp_a | comp_rng if low gradient
         if sub_blob['sign']:
             if sub_blob['Dert']['M'] > aveB * rdn:
                 # +M -> comp_r -> dert with accumulated derivatives:
-                intra_blob(sub_blob, rdn + 1, rng + 1, fig=fig, fcr=1)  # fga for comp_agr
+                intra_blob(sub_blob, rdn + 1, rng + 1, fig=fig, fcr=1, counter=counter)  # fga for comp_agr
 
         elif sub_blob['Dert']['G'] > aveB * rdn:
             # +G -> comp_a -> dert + a, ga=0, day=0, dax=0:
-            intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fcr=0)
+            intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fcr=0, counter=counter)
     '''
     also cluster_derts(crit=gi): abs_gg (no * cos(da)) -> abs_gblobs, no eval by Gi?
     with feedback:
     for sub_blob in blob['blob_']:
         blob['layer_'] += intra_blob(sub_blob, rdn + 1 + 1 / lL, rng, fig, fca)  # redundant to sub_blob
     '''
+    # what are gi and abs_gblobs?
 
 
 def intra_blob_a(blob, rdn, rng, fig, fca, fcr, fga):
-
     # recursive input rng+ | der+ | angle cross-comp within a blob
     # flags: fca: comp angle, fga: comp angle of ga, fig: input is g, fcr: comp over rng+
+
     if fca:
-        dert__ = comp_a(blob['dert__'], fga)  #-> ma sub_blobs evaluate for comp_g | comp_aga:
-        cluster_derts(blob, dert__, ave*rdn, fca, fcr, fig=0)
+        dert__ = comp_a(blob['dert__'], fga)  # -> ma sub_blobs evaluate for comp_g | comp_aga:
+        cluster_derts(blob, dert__, ave * rdn, fca, fcr, fig=0)
+
         for sub_blob in blob['blob_']:  # eval intra_blob: if disoriented g: comp_aga, else comp_g
             if sub_blob['sign']:
                 if sub_blob['Dert']['Ma'] > aveB * rdn:
                     # +Ma -> comp_g -> dert = g, gg, gdy, gdx, gm:
                     intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fca=0, fcr=0, fga=1)  # fga for comp_agg
+
             elif sub_blob['Dert']['Ga'] > aveB * rdn:
                 # +Ga -> comp_aga -> dert + gaga, ga_day, ga_dax:
                 intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fca=1, fcr=0, fga=1)
     else:
-        if fcr: dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  #-> m sub_blobs
-        else:   dert__ = comp_g(blob['dert__'])  #-> g sub_blobs:
-        cluster_derts(blob, dert__, ave*rdn, fca, fcr, fig)
+        if fcr:
+            dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  # -> m sub_blobs
+        else:
+            dert__ = comp_g(blob['dert__'])  # -> g sub_blobs:
+
+        cluster_derts(blob, dert__, ave * rdn, fca, fcr, fig)
         # feedback: root['layer_'] += [[(lL, fig, fcr, rdn, rng, blob['sub_blob_'])]]  # 1st sub_layer
+
         for sub_blob in blob['blob_']:  # eval intra_blob comp_a | comp_rng if low gradient
             if sub_blob['sign']:
                 if sub_blob['Dert']['M'] > aveB * rdn:
                     # +M -> comp_r -> dert with accumulated derivatives:
                     intra_blob(sub_blob, rdn + 1, rng + 1, fig=fig, fca=0, fcr=1, fga=0)  # fga for comp_agr
+
             elif sub_blob['Dert']['G'] > aveB * rdn:
                 # +G -> comp_a -> dert + a, ga=0, day=0, dax=0:
                 intra_blob(sub_blob, rdn + 1, rng=1, fig=1, fca=1, fcr=0, fga=0)
@@ -126,13 +145,15 @@ aS_PARAM_KEYS = aPARAMS + S_PARAMS
 
 def cluster_derts(blob, dert__, Ave, fca, fcr, fig):  # clustering crit is always g in dert[1], fder is a sign
 
+    # Ave is a global value, but shouldn`t it change for higher layers?
+
     blob['layer_'][0][0] = dict(I=0, G=0, Dy=0, Dx=0, M=0, Ga=0, Dyy=0, Dxy=0, Dyx=0, Dxx=0, Ma=0, S=0, Ly=0,
                                 sub_blob_=[])  # to fill with fork params and sub_sub_blobs
     # initialize first sub_blob in first layer
 
     P__ = form_P__(dert__, Ave, fca, fcr, fig)  # horizontal clustering
     P_ = scan_P__(P__)
-    stack_ = form_stack_(P_)  # vertical clustering
+    stack_ = form_stack_(P_, fig=fig)  # vertical clustering
     sub_blob_ = form_blob_(stack_, blob['fork_'])  # with feedback to root_fork at blob['fork_']
 
     return sub_blob_
@@ -149,7 +170,7 @@ def form_P__(dert__, Ave, fca, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__
         param_keys = aP_PARAM_KEYS  # comp_a output params
     elif fcr:
         if fig:
-            crit__ = dert__[0 + 4, :, :] - Ave  # comp_r output eval by i + m, accumulated over comp range
+            crit__ = dert__[4, :, :] - Ave  # comp_r output eval by i + m, accumulated over comp range
         else:
             crit__ = Ave - dert__[1, :, :]  # comp_r output eval by inverted g, accumulated over comp range
         param_keys = P_PARAM_KEYS
@@ -161,19 +182,18 @@ def form_P__(dert__, Ave, fca, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__
     s_x_L__ = [*map(
         lambda crit_:  # Each line
         [(sign, next(group)[0], len(list(group)) + 1)  # (s, x, L)
-         for sign, group in groupby(enumerate(crit_ > 0),
-                                    op.itemgetter(1))  # (x, s): return s
+         for sign, group in groupby(enumerate(crit_ > 0), op.itemgetter(1))  # (x, s): return s
          if sign is not ma.masked],  # Ignore gaps.
         crit__,  # blob slices in line
     )]
+
     Pdert__ = [[dert_[:, x: x + L].T for s, x, L in s_x_L_]
                for dert_, s_x_L_ in zip(dert__.swapaxes(0, 1), s_x_L__)]
 
     # Accumulate Dert = P param_keys:
     PDert__ = map(lambda Pdert_:
-                  map(lambda Pdert_: Pdert_.sum(axis=0),
-                      Pdert_),
-                  Pdert__)
+                  map(lambda Pdert_: Pdert_.sum(axis=0), Pdert_), Pdert__)
+
     P__ = [
         [
             dict(zip(  # Key-value pairs:
@@ -230,11 +250,11 @@ def form_stack_(P_, fig):
     """Form segments of vertically contiguous Ps."""
     # Get a list of every segment's first P:
     P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
-                              or len(P['up_fork_'][0]['down_fork_']) != 1),
-                   P_)]
+                              or len(P['up_fork_'][0]['down_fork_']) != 1),  P_)]
 
     if fig:
         param_keys = gS_PARAM_KEYS
+        # gS_PARAM_KEYS might be the same as aS_PARAM_KEYS?
     else:
         param_keys = S_PARAM_KEYS
 
@@ -256,6 +276,8 @@ def form_stack_(P_, fig):
     for seg in seg_:  # Update down_fork_ and up_fork_ .
         seg.update(down_fork_=[*map(lambda P: P['seg'], seg['down_fork_'])],
                    up_fork_=[*map(lambda P: P['seg'], seg['up_fork_'])])
+        # isn`t the syntax of dict.update({'key': 'value'})? is seg exists only once for every segment?
+        # if the keys are the same the values will be replaced
 
     for i, seg in enumerate(seg_):  # Remove segs' refs.
         del seg['Py_'][0]['seg']
