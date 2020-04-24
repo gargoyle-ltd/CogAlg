@@ -28,15 +28,15 @@ def comp_r(dert__, fig, root_fcr):
     '''
     sparse aligned i__center and i__rim arrays:
     '''
-    i__center = i__[1:-1:2, 1:-1:2]
-    i__topleft = i__[:-2:2, :-2:2]
-    i__top = i__[:-2:2, 1:-1:2]
-    i__topright = i__[:-2:2, 2::2]
-    i__right = i__[1:-1:2, 2::2]
+    i__center =      i__[1:-1:2, 1:-1:2]
+    i__topleft =     i__[:-2:2, :-2:2]
+    i__top =         i__[:-2:2, 1:-1:2]
+    i__topright =    i__[:-2:2, 2::2]
+    i__right =       i__[1:-1:2, 2::2]
     i__bottomright = i__[2::2, 2::2]
-    i__bottom = i__[2::2, 1:-1:2]
-    i__bottomleft = i__[2::2, :-2:2]
-    i__left = i__[1:-1:2, :-2:2]
+    i__bottom =      i__[2::2, 1:-1:2]
+    i__bottomleft =  i__[2::2, :-2:2]
+    i__left =        i__[1:-1:2, :-2:2]
 
     if root_fcr:  # root fork is comp_r, all params are present in the input:
 
@@ -58,9 +58,9 @@ def comp_r(dert__, fig, root_fcr):
                          i__topright - i__bottomleft,
                          i__right - i__left
                          ))
-        for d__, YCOEF, XCOEF in zip(dt__, YCOEFs[:4], XCOEFs[:4]):
-            dy__ += d__ * YCOEF  # decompose differences into dy and dx,
-            dx__ += d__ * XCOEF  # accumulate with prior-rng dy, dx
+        for d__, in zip(dt__):
+            dy__ += 2* d__   # decompose differences into dy and dx,
+            dx__ += 2* d__   # accumulate with prior-rng dy, dx
 
         g__ = np.hypot(dy__, dx__)  # gradient
         '''
@@ -81,87 +81,80 @@ def comp_r(dert__, fig, root_fcr):
         if not root_fcr:
             idy__, idx__ = dert__[[-2, -1]]  # root fork is comp_g, not sparse
 
+            dy__ = np.zeros((i__center.shape[0], i__center.shape[1]))  # row, column
+            dx__ = np.zeros((i__center.shape[0], i__center.shape[1]))
+
         # not needed, compute cosine only, also for accumulation?:
 
         a__ = [idy__, idx__] / i__  # i = ig
         '''
         sparse aligned a__center and a__rim arrays:
         '''
-        a__center = a__[:, 1:-1:2, 1:-1:2]
-        a__topleft = a__[:, :-2:2, :-2:2]
-        a__top = a__[:, :-2:2, 1:-1: 2]
-        a__topright = a__[:, :-2:2, 2::2]
-        a__right = a__[:, 1:-1:2, 2::2]
+        a__center =      a__[:, 1:-1:2, 1:-1:2]
+        a__topleft =     a__[:, :-2:2, :-2:2]
+        a__top =         a__[:, :-2:2, 1:-1: 2]
+        a__topright =    a__[:, :-2:2, 2::2]
+        a__right =       a__[:, 1:-1:2, 2::2]
         a__bottomright = a__[:, 2::2, 2::2]
-        a__bottom = a__[:, 2::2, 1:-1:2]
-        a__bottomleft = a__[:, 2::2, :-2:2]
-        a__left = a__[:, 1:-1:2, :-2:2]
+        a__bottom =      a__[:, 2::2, 1:-1:2]
+        a__bottomleft =  a__[:, 2::2, :-2:2]
+        a__left =        a__[:, 1:-1:2, :-2:2]
+
         '''
         8-tuple of differences between center dert angle and rim dert angle:
         '''
-        dat__ = np.stack((angle_diff(a__center, a__topleft, 0),
-                          angle_diff(a__center, a__top, 0),
-                          angle_diff(a__center, a__topright, 0),
-                          angle_diff(a__center, a__right, 0),
-                          angle_diff(a__center, a__bottomright, 0),
-                          angle_diff(a__center, a__bottom, 0),
-                          angle_diff(a__center, a__bottomleft, 0),
-                          angle_diff(a__center, a__left, 0)
-                          ))
+
+        cos_da = np.stack((
+                  ((a__center[0] * a__center[1]) + (a__topleft[0] * a__topleft[1])),
+                  ((a__center[0] * a__center[1]) + (a__top[0] *  a__top[1])),
+                  ((a__center[0] * a__center[1]) + (a__topright[0] * a__topright[1])),
+                  ((a__center[0] * a__center[1]) + (a__right[0] * a__right[1])),
+                  ((a__center[0] * a__center[1]) + (a__bottomright[0] * a__bottomright[1])),
+                  ((a__center[0] * a__center[1]) + (a__bottom[0] * a__bottom[1])),
+                  ((a__center[0] * a__center[1]) + (a__bottomleft[0] * a__bottomleft[1])),
+                  ((a__center[0] * a__center[1]) + (a__left[0] * a__left[1]))
+                ))
+
         if root_fcr:
             m__, day__, dax__ = dert__[[-4, -2, -1]]  # skip ga: recomputed, output for summation only?
             m__ = m__[1:-1:2, 1:-1:2]  # sparse to align with i__center
-            day__ = day__[1:-1:2, 1:-1:2]
-            dax__ = dax__[1:-1:2, 1:-1:2]
+
         else:
             m__ = np.zeros((i__center.shape[0], i__center.shape[1]))  # row, column
-            day__ = np.zeros((a__center.shape[0], a__center.shape[1], a__center.shape[2]))
-            dax__ = np.zeros((a__center.shape[0], a__center.shape[1], a__center.shape[2]))
 
-        for dat_, YCOEF, XCOEF in zip(dat__, YCOEFs, XCOEFs):
-            '''
-            accumulate in prior-rng (3x3 -> 5x5 -> 9x9) day, dax:
-            '''
-            day__ += dat_ * YCOEF  # decomposed differences of angle,
-            dax__ += dat_ * YCOEF  # accumulate in prior-rng day, dax
-        '''
-        gradient of angle: not needed in comp_r?
-        '''
-        ga__ = np.hypot(np.arctan2(*day__), np.arctan2(*dax__))
-        '''
-        accumulate match (cosine similarity) in prior-rng (3x3 -> 5x5 -> 9x9) m:
-        '''
-        m__ += (np.minimum(i__center, (i__topleft * dat__[0][1]))
-                + np.minimum(i__center, (i__top * dat__[1][1]))
-                + np.minimum(i__center, (i__topright * dat__[2][1]))
-                + np.minimum(i__center, (i__right * dat__[3][1]))
-                + np.minimum(i__center, (i__bottomright * dat__[4][1]))
-                + np.minimum(i__center, (i__bottom * dat__[5][1]))
-                + np.minimum(i__center, (i__bottomleft * dat__[6][1]))
-                + np.minimum(i__center, (i__left * dat__[7][1]))
+
+        m__ += (  np.minimum(i__center, (i__topleft *     cos_da[0]))
+                + np.minimum(i__center, (i__top *         cos_da[1]))
+                + np.minimum(i__center, (i__topright *    cos_da[2]))
+                + np.minimum(i__center, (i__right *       cos_da[3]))
+                + np.minimum(i__center, (i__bottomright * cos_da[4]))
+                + np.minimum(i__center, (i__bottom *      cos_da[5]))
+                + np.minimum(i__center, (i__bottomleft *  cos_da[6]))
+                + np.minimum(i__center, (i__left *        cos_da[7]))
                 )
         '''
         8-tuple of cosine differences per direction:
         '''
-        dt__ = np.stack(((i__center - i__topleft * dat__[0][1]),
-                         (i__center - i__top * dat__[1][1]),
-                         (i__center - i__topright * dat__[2][1]),
-                         (i__center - i__right * dat__[3][1]),
-                         (i__center - i__bottomright * dat__[4][1]),
-                         (i__center - i__bottom * dat__[5][1]),
-                         (i__center - i__bottomleft * dat__[6][1]),
-                         (i__center - i__left * dat__[7][1])
+        dt__ = np.stack(((i__center - i__topleft *     cos_da[0]),
+                         (i__center - i__top *         cos_da[1]),
+                         (i__center - i__topright *    cos_da[2]),
+                         (i__center - i__right *       cos_da[3]),
+                         (i__center - i__bottomright * cos_da[4]),
+                         (i__center - i__bottom *      cos_da[5]),
+                         (i__center - i__bottomleft *  cos_da[6]),
+                         (i__center - i__left *        cos_da[7])
                          ))
-        for d__, YCOEF, XCOEF in zip(dt__, YCOEFs, XCOEFs):
-            dy__ += d__ * YCOEF  # y-decomposed center-to-rim difference
-            dx__ += d__ * XCOEF  # x-decomposed center-to-rim difference
+
+        for d__ in dt__:
+            dy__ += 2 * d__   # y-decomposed center-to-rim difference
+            dx__ += 2 * d__   # x-decomposed center-to-rim difference
             '''
             accumulate in prior-rng (3x3 -> 5x5 -> 9x9) dy, dx
             '''
         g__ = np.hypot(dy__, dx__)
 
     if fig:
-        rdert = ma.stack((i__center, g__, dy__, dx__, m__, idy__, idx__))
+        rdert = ma.stack((i__center, g__, dy__, dx__, m__, idy__[1:-1:2, 1:-1:2], idx__[1:-1:2, 1:-1:2]))
     else:
         rdert = ma.stack((i__center, g__, dy__, dx__, m__))
     '''
@@ -184,24 +177,28 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
 
     g0__, dy0__, dx0__ = g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1]  # top left
     g1__, dy1__, dx1__ = g__[:-1, 1:], dy__[:-1, 1:], dx__[:-1, 1:]  # top right
-    g2__, dy2__, dx2__ = g__[1:, :-1], dy__[1:, :-1], dx__[1:, :-1]  # bottom left
-    g3__, dy3__, dx3__ = g__[1:, 1:], dy__[1:, 1:], dx__[1:, 1:]  # bottom right
+    g2__, dy2__, dx2__ = g__[1:, 1:], dy__[1:, 1:], dx__[1:, 1:]  # bottom right
+    g3__, dy3__, dx3__ = g__[1:, :-1], dy__[1:, :-1], dx__[1:, :-1]  # bottom left
+
     '''
+    indexes clockwise 
     cosine of difference between diagonally opposed angles, in vector representation:
     '''
-    cos_da0__ = (dy0__ * dx0__) + (dy3__ * dx3__)  # top left to bottom right angles
-    cos_da1__ = (dy1__ * dx1__) + (dy2__ * dx2__)  # top left to bottom right angles
 
-    dgy__ = ((g2__ + g3__) - (g0__ * cos_da0__ + g1__ * cos_da1__))
+    cos_da0__ = (dy0__ * dx0__) + (dy2__ * dx2__)  # top left to bottom right angles
+    cos_da1__ = (dy1__ * dx1__) + (dy3__ * dx3__)  # top right to bottom left
+    print(cos_da1__.shape, type(cos_da1__))
+
+    dgy__ = ((g3__ + g2__) - (g0__ * cos_da0__ + g1__ * cos_da1__))
     # y-decomposed cosine difference between gs
 
-    dgx__ = ((g1__ + g3__) - (g0__ * cos_da0__ + g2__ * cos_da1__))
+    dgx__ = ((g1__ + g2__) - (g0__ * cos_da0__ + g3__ * cos_da1__))
     # x-decomposed cosine difference between gs
 
     gg__ = np.hypot(dgy__, dgx__)  # gradient of gradient
 
-    mg0__ = np.minimum(g0__, (g3__ * cos_da0__))  # g match = min(g, _g*cos(da))
-    mg1__ = np.minimum(g1__, (g2__ * cos_da1__))
+    mg0__ = np.minimum(g0__, (g2__ * cos_da0__))  # g match = min(g, _g*cos(da))
+    mg1__ = np.minimum(g1__, (g3__ * cos_da1__))
     mg__ = mg0__ + mg1__
 
     gdert = ma.stack((g__[:-1, :-1],  # remove last row and column to align with derived params
