@@ -261,36 +261,36 @@ def form_stack_(P_, fig, param_keys):
 
     """Form segments of vertically contiguous Ps."""
 
-    '''  # Get a list of every segment's first P:
-      P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
-                                or len(P['up_fork_'][0]['down_fork_']) != 1),  P_)]
+      # Get a list of every segment's first P:
+    P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
+                              or len(P['up_fork_'][0]['down_fork_']) != 1),  P_)]
     
-      # Form segments:
-      seg_ = [dict(zip(param_keys,  # segment's params as keys
-                       # Accumulated params:
-                       [*map(sum,
-                             zip(*map(op.itemgetter(*param_keys[:-6]),
-                                      Py_))),
-                        len(Py_), Py_[0].pop('y'), Py_,  # Ly, y0, Py_ .
-                        Py_[-1].pop('down_fork_'), Py_[0].pop('up_fork_'),  # down_fork_, up_fork_ .
-                        Py_[0].pop('sign')]))
-              # cluster_vertical(P): traverse segment from first P:
-              for Py_ in map(cluster_vertical, P0_)]
+    # Form segments:
+    seg_ = [dict(zip(param_keys,  # segment's params as keys
+                     # Accumulated params:
+                     [*map(sum,
+                           zip(*map(op.itemgetter(*param_keys[:-6]),
+                                    Py_))),
+                      len(Py_), Py_[0].pop('y'), Py_,  # Ly, y0, Py_ .
+                      Py_[-1].pop('down_fork_'), Py_[0].pop('up_fork_'),  # down_fork_, up_fork_ .
+                      Py_[0].pop('sign')]))
+            # cluster_vertical(P): traverse segment from first P:
+            for Py_ in map(cluster_vertical, P0_)]
     
-      for seg in seg_:  # Update segs' refs.
-          seg['Py_'][0]['seg'] = seg['Py_'][-1]['seg'] = seg
+    for seg in seg_:  # Update segs' refs.
+        seg['Py_'][0]['seg'] = seg['Py_'][-1]['seg'] = seg
     
-      for seg in seg_:  # Update down_fork_ and up_fork_ .
-          seg.update(down_fork_=[*map(lambda P: P['seg'], seg['down_fork_'])],
-                     up_fork_=[*map(lambda P: P['seg'], seg['up_fork_'])])
-          # isn`t the syntax of dict.update({'key': 'value'})? is seg exists only once for every segment?
-          # if the keys are the same the values will be replaced
+    for seg in seg_:  # Update down_fork_ and up_fork_ .
+        seg.update(down_fork_=[*map(lambda P: P['seg'], seg['down_fork_'])],
+                   up_fork_=[*map(lambda P: P['seg'], seg['up_fork_'])])
+        # isn`t the syntax of dict.update({'key': 'value'})? is seg exists only once for every segment?
+        # if the keys are the same the values will be replaced
     
-      for i, seg in enumerate(seg_):  # Remove segs' refs.
-          del seg['Py_'][0]['seg']
+    for i, seg in enumerate(seg_):  # Remove segs' refs.
+        del seg['Py_'][0]['seg']
     
-      return seg_'''
-    pass
+    return seg_
+
 
 '''3-fork algorithm functions'''
 
