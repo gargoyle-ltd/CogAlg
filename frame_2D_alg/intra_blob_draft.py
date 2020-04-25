@@ -131,21 +131,28 @@ def intra_blob_a(blob, rdn, rng, fig, fca, fcr, fga):
 # constants:
 
 iPARAMS = "I", "G", "Dy", "Dx", "M"  # formed by comp_pixel
-aPARAMS = iPARAMS + ("Ga", "Dyy", "Dxy", "Dyx", "Dxx")  # (sin, cos), formed by comp_a, same for comp_g
-rPARAMS = iPARAMS  # if fig: + gPARAMS  # formed by comp_r
+gPARAMS = iPARAMS + ("Ga", "Dyy", "Dxy", "Dyx", "Dxx")  # (sin, cos), formed by comp_a, same for comp_g
 
 P_PARAMS = "L", "x0", "dert_", "down_fork_", "up_fork_", "y", "sign"
+
 S_PARAMS = "S", "Ly", "y0", "x0", "xn", "Py_", "down_fork_", "up_fork_", "sign"
 
 P_PARAM_KEYS = iPARAMS + P_PARAMS
-aP_PARAM_KEYS = aPARAMS + P_PARAMS
+aP_PARAM_KEYS = gPARAMS + P_PARAMS
 S_PARAM_KEYS = iPARAMS + S_PARAMS
-aS_PARAM_KEYS = aPARAMS + S_PARAMS
+aS_PARAM_KEYS = gPARAMS + S_PARAMS
 
 
 def cluster_derts(blob, dert__, Ave, fca, fcr, fig):  # clustering crit is always g in dert[1], fder is a sign
 
     # Ave is a global value, but shouldn`t it change for higher layers?
+    # Ave * rnd depends per num of pattrens
+
+    if fig:
+        param_keys = aS_PARAM_KEYS
+
+    else:
+        param_keys = aP_PARAM_KEYS
 
     blob['layer_'][0][0] = dict(I=0, G=0, Dy=0, Dx=0, M=0, Ga=0, Dyy=0, Dxy=0, Dyx=0, Dxx=0, Ma=0, S=0, Ly=0,
                                 sub_blob_=[])  # to fill with fork params and sub_sub_blobs
@@ -153,7 +160,7 @@ def cluster_derts(blob, dert__, Ave, fca, fcr, fig):  # clustering crit is alway
 
     P__ = form_P__(dert__, Ave, fca, fcr, fig)  # horizontal clustering
     P_ = scan_P__(P__)
-    stack_ = form_stack_(P_, fig=fig)  # vertical clustering
+    stack_ = form_stack_(P_, fig=fig, param_keys)  # vertical clustering
     sub_blob_ = form_blob_(stack_, blob['fork_'])  # with feedback to root_fork at blob['fork_']
 
     return sub_blob_
@@ -162,19 +169,57 @@ def cluster_derts(blob, dert__, Ave, fca, fcr, fig):  # clustering crit is alway
 # clustering functions, out of date:
 # -------------------------------------------------------------------------------------------------------------------
 
-def form_P__(dert__, Ave, fca, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__, in horizontal ) vertical order
+
+def form_P__(dert__, Ave, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__, in horizontal ) vertical order
+
+    """Form segments of vertically contiguous Ps."""
+
+    # Get a list of every segment's first P:
+    P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
+                              or len(P['up_fork_'][0]['down_fork_']) != 1),  P_)]
+
+    # Form segments:
+    seg_ = [dict(zip(param_keys,  # segment's params as keys
+                     # Accumulated params:
+                     [*map(sum,
+                           zip(*map(op.itemgetter(*param_keys[:-6]),
+                                    Py_))),
+                      len(Py_), Py_[0].pop('y'), Py_,  # Ly, y0, Py_ .
+                      Py_[-1].pop('down_fork_'), Py_[0].pop('up_fork_'),  # down_fork_, up_fork_ .
+                      Py_[0].pop('sign')]))
+            # cluster_vertical(P): traverse segment from first P:
+            for Py_ in map(cluster_vertical, P0_)]
+
+    for seg in seg_:  # Update segs' refs.
+        seg['Py_'][0]['seg'] = seg['Py_'][-1]['seg'] = seg
+
+    for seg in seg_:  # Update down_fork_ and up_fork_ .
+        seg.update(down_fork_=[*map(lambda P: P['seg'], seg['down_fork_'])],
+                   up_fork_=[*map(lambda P: P['seg'], seg['up_fork_'])])
+        # isn`t the syntax of dict.update({'key': 'value'})? is seg exists only once for every segment?
+        # if the keys are the same the values will be replaced
+
+    for i, seg in enumerate(seg_):  # Remove segs' refs.
+        del seg['Py_'][0]['seg']
+
+    return seg_
+
+'''3-fork algorithm functions'''
 
     # compute value (clustering criterion) per each intra_comp fork, crit__ and dert__ are 2D arrays:
     if fca:
         crit__ = Ave - dert__[-1, :, :]  # comp_a output eval by inverse deviation of ma, add a coeff to Ave?
         param_keys = aP_PARAM_KEYS  # comp_a output params
+
     elif fcr:
         if fig:
             crit__ = dert__[4, :, :] - Ave  # comp_r output eval by i + m, accumulated over comp range
+
         else:
             crit__ = Ave - dert__[1, :, :]  # comp_r output eval by inverted g, accumulated over comp range
         param_keys = P_PARAM_KEYS
     else:
+
         crit__ = dert__[1, :, :] - Ave  # comp_g output eval by g
         param_keys = P_PARAM_KEYS
 
@@ -208,7 +253,7 @@ def form_P__(dert__, Ave, fca, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__
     return P__
 
 
-def scan_P__(P__):
+def scan_P__3(P__):
     """Detect up_forks and down_forks per P."""
 
     for _P_, P_ in pairwise(P__):  # Iterate through pairs of lines.
@@ -246,17 +291,18 @@ def comp_edge(_P, P):  # Used in scan_P_().
         return False, _x0 < xn
 
 
-def form_stack_(P_, fig):
+def form_stack_3(P_, fig):
     """Form segments of vertically contiguous Ps."""
     # Get a list of every segment's first P:
     P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
                               or len(P['up_fork_'][0]['down_fork_']) != 1),  P_)]
 
-    if fig:
-        param_keys = gS_PARAM_KEYS
-        # gS_PARAM_KEYS might be the same as aS_PARAM_KEYS?
-    else:
-        param_keys = S_PARAM_KEYS
+    # no need for parameters
+    # if fig:
+    #     param_keys = gS_PARAM_KEYS
+    #     # gS_PARAM_KEYS might be the same as aS_PARAM_KEYS?
+    # else:
+    #    param_keys = S_PARAM_KEYS
 
     # Form segments:
     seg_ = [dict(zip(param_keys,  # segment's params as keys
