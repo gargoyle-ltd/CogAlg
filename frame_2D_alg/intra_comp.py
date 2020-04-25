@@ -5,6 +5,14 @@ Cross-comparison of pixels, angles, or gradients, in 2x2 or 3x3 kernels
 import numpy as np
 import numpy.ma as ma
 
+YCOEFs = np.array([-1, -2, -1, 0, 1, 2, 1, 0])
+XCOEFs = np.array([-1, 0, 1, 2, 1, 0, -1, -2])
+''' 
+    |--(clockwise)--+  |--(clockwise)--+
+    YCOEF: -1  -2  -1  ¦   XCOEF: -1   0   1  ¦
+            0       0  ¦          -2       2  ¦
+            1   2   1  ¦          -1   0   1  ¦
+'''
 
 def comp_r(dert__, fig, root_fcr):
     """
@@ -58,9 +66,10 @@ def comp_r(dert__, fig, root_fcr):
                          i__topright - i__bottomleft,
                          i__right - i__left
                          ))
-        for d__, in zip(dt__):
-            dy__ += 2* d__   # decompose differences into dy and dx,
-            dx__ += 2* d__   # accumulate with prior-rng dy, dx
+
+        for d__, YCOEF, XCOEF in zip(dt__, YCOEFs[:4], XCOEFs[:4]):
+            dy__ += d__ * YCOEF  # decompose differences into dy and dx,
+            dx__ += d__ * XCOEF  # accumulate with prior-rng dy, dx
 
         g__ = np.hypot(dy__, dx__)  # gradient
         '''
