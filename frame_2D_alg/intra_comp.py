@@ -180,14 +180,13 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
     g2__, dy2__, dx2__ = g__[1:, 1:], dy__[1:, 1:], dx__[1:, 1:]  # bottom right
     g3__, dy3__, dx3__ = g__[1:, :-1], dy__[1:, :-1], dx__[1:, :-1]  # bottom left
 
+
     '''
-    indexes clockwise 
     cosine of difference between diagonally opposed angles, in vector representation:
     '''
+    cos_da0__ = ((dy0__ / g0__) * (dx0__ / g0__)) + ((dy2__ / g2__) * (dx2__ / g2__))  # top left to bottom right
+    cos_da1__ = ((dy1__ / g1__) * (dx1__ / g1__)) + ((dy3__ / g3__) * (dx3__ / g3__))  # top right to bottom left
 
-    cos_da0__ = (dy0__ * dx0__) + (dy2__ * dx2__)  # top left to bottom right angles
-    cos_da1__ = (dy1__ * dx1__) + (dy3__ * dx3__)  # top right to bottom left
-    print(cos_da1__.shape, type(cos_da1__))
 
     dgy__ = ((g3__ + g2__) - (g0__ * cos_da0__ + g1__ * cos_da1__))
     # y-decomposed cosine difference between gs
