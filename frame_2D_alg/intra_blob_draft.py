@@ -172,40 +172,132 @@ def cluster_derts(blob, dert__, Ave, fca, fcr, fig):  # clustering crit is alway
 
 def form_P__(dert__, Ave, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__, in horizontal ) vertical order
 
+    # compute value (clustering criterion) per each intra_comp fork, crit__ and dert__ are 2D arrays:
+    if fcr:
+        if fig:
+            crit__ = dert__[0] + dert__[4] - Ave  # comp_r output eval by i + m, accumulated over comp range
+        else:
+            crit__ = Ave - dert__[1]  # comp_r output eval by inverted g, accumulated over comp range
+    else:
+        crit__ = dert__[1] - Ave  # comp_g output eval by g
+
+    # initialize P__
+    P__ = [None] * dert__.shape[1]
+
+    # create copy of input x0
+    x0_ini = x0
+
+    # In each dert, find pattern in each horizontal line
+    # loop in vertical direction and perform clustering in each row
+    for y in range(dert__.shape[1]):
+
+        # initialize P_
+        P_ = []
+        sign_ = crit__[y, :] > 0
+
+        # initialize params
+        sign = crit__>0
+        I, G, Dy, Dx, M, L, x0 = 0, 0, 0, 0, 0, 1, x0_ini
+
+        # loop in horizontal direction (left to right in each line)
+        for x in range(1, dert__.shape[2]):
+
+            # get current sign
+            sign = sign_[x]
+
+            # if sign changed:
+            if sign_[x] != sign:
+                # terminate and pack P:
+                P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, dert_=dert__[:, y, x0:x0 + L], y=y, sign=_sign)
+                P_.append(P)
+
+                # initialize new P params:
+                I, G, Dy, Dx, M, L, x0 = 0, 0, 0, 0, 0, 0, x
+
+            # accumulate P parameters
+            I += dert__[0][y,:][x]
+            G += dert__[1][y,:][x]
+            Dy += dert__[2][y,:][x]
+            Dx += dert__[3][y,:][x]
+            M += dert__[4][y,:][x]
+            L += 1
+            _sign = sign  # prior sign
+
+        # terminate last P in a row
+        P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, dert_=dert__[:, y, x0:x0 + L], y=y, sign=_sign)
+        P_.append(P)
+
+        # store each row P
+        P__[y] = P_
+
+    return P__
+
+
+def scan_P__(P__, stack_):
+    """Detect up_forks and down_forks per P."""
+
+    if P__ and stack_:
+        for P_, next_P_ in pairwise(P__):  # go with pairs
+            up_fork_ = []
+
+            x0 = P_['x0']
+            xn = x0 + P_['L']
+            next_x0 = next_P_['x0']
+            next_xn = next_x0 + next_P_['L']
+
+            if P_['sign'] == stack_['sign']:
+                if x0 < next_xn and next_x0 < xn:  # check for overlapping
+                    stack_['down_fork_cnt'] += 1
+                    up_fork_.append(stack_)
+
+                    if P_['sign'] == next_P_['sign']: # check for same sign
+                        P_['down_fork'].append(next_P_)
+                        next_P_['up_fork'].append(P_)
+
+    return P__
+
+
+def form_stack_(P_, fig, param_keys):
+
     """Form segments of vertically contiguous Ps."""
 
-    # Get a list of every segment's first P:
-    P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
-                              or len(P['up_fork_'][0]['down_fork_']) != 1),  P_)]
-
-    # Form segments:
-    seg_ = [dict(zip(param_keys,  # segment's params as keys
-                     # Accumulated params:
-                     [*map(sum,
-                           zip(*map(op.itemgetter(*param_keys[:-6]),
-                                    Py_))),
-                      len(Py_), Py_[0].pop('y'), Py_,  # Ly, y0, Py_ .
-                      Py_[-1].pop('down_fork_'), Py_[0].pop('up_fork_'),  # down_fork_, up_fork_ .
-                      Py_[0].pop('sign')]))
-            # cluster_vertical(P): traverse segment from first P:
-            for Py_ in map(cluster_vertical, P0_)]
-
-    for seg in seg_:  # Update segs' refs.
-        seg['Py_'][0]['seg'] = seg['Py_'][-1]['seg'] = seg
-
-    for seg in seg_:  # Update down_fork_ and up_fork_ .
-        seg.update(down_fork_=[*map(lambda P: P['seg'], seg['down_fork_'])],
-                   up_fork_=[*map(lambda P: P['seg'], seg['up_fork_'])])
-        # isn`t the syntax of dict.update({'key': 'value'})? is seg exists only once for every segment?
-        # if the keys are the same the values will be replaced
-
-    for i, seg in enumerate(seg_):  # Remove segs' refs.
-        del seg['Py_'][0]['seg']
-
-    return seg_
+    '''  # Get a list of every segment's first P:
+      P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
+                                or len(P['up_fork_'][0]['down_fork_']) != 1),  P_)]
+    
+      # Form segments:
+      seg_ = [dict(zip(param_keys,  # segment's params as keys
+                       # Accumulated params:
+                       [*map(sum,
+                             zip(*map(op.itemgetter(*param_keys[:-6]),
+                                      Py_))),
+                        len(Py_), Py_[0].pop('y'), Py_,  # Ly, y0, Py_ .
+                        Py_[-1].pop('down_fork_'), Py_[0].pop('up_fork_'),  # down_fork_, up_fork_ .
+                        Py_[0].pop('sign')]))
+              # cluster_vertical(P): traverse segment from first P:
+              for Py_ in map(cluster_vertical, P0_)]
+    
+      for seg in seg_:  # Update segs' refs.
+          seg['Py_'][0]['seg'] = seg['Py_'][-1]['seg'] = seg
+    
+      for seg in seg_:  # Update down_fork_ and up_fork_ .
+          seg.update(down_fork_=[*map(lambda P: P['seg'], seg['down_fork_'])],
+                     up_fork_=[*map(lambda P: P['seg'], seg['up_fork_'])])
+          # isn`t the syntax of dict.update({'key': 'value'})? is seg exists only once for every segment?
+          # if the keys are the same the values will be replaced
+    
+      for i, seg in enumerate(seg_):  # Remove segs' refs.
+          del seg['Py_'][0]['seg']
+    
+      return seg_'''
+    pass
 
 '''3-fork algorithm functions'''
 
+
+def form_P__3(dert__, Ave, fca, fcr, fig, x0=0, y0=0):  # cluster dert__ into P__, in horizontal ) vertical order
+
+    # crit__ values and use the sign
     # compute value (clustering criterion) per each intra_comp fork, crit__ and dert__ are 2D arrays:
     if fca:
         crit__ = Ave - dert__[-1, :, :]  # comp_a output eval by inverse deviation of ma, add a coeff to Ave?
