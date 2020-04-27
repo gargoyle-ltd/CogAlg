@@ -160,6 +160,7 @@ def form_P__(dert__, Ave, fcr, fig):  # segment dert__ into P__, in horizontal )
                 if fig: iDy, iDx = idy_[x], idx_[x]
                 L += 1
                 _sign = sign  # prior sign
+                mask = np.ones((x0 + L - x0), dtype=bool)
 
         # terminate last P in a row
         P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, sign=_sign)
