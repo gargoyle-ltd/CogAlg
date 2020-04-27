@@ -85,15 +85,16 @@ def form_P_(dert__):  # horizontal clustering and summation of dert params into 
     # P is a segment of same-sign derts in horizontal slice of a blob
 
     P_ = deque()  # row of Ps
-    I, G, Dy, Dx, L, x0 = *dert__[0], 1, 0  # initialize P params with 1st dert params
+    I, G, Dy, Dx, M, L, x0 = *dert__[0], 1, 0  # initialize P params with 1st dert params
     G = int(G) - ave
     _s = G > 0  # sign
-    for x, (p, g, dy, dx) in enumerate(dert__[1:], start=1):
+    for x, (p, g, dy, dx, m) in enumerate(dert__[1:], start=1):
         vg = int(g) - ave  # deviation of g
         s = vg > 0
         if s != _s:
             # terminate and pack P:
             P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, dert__=dert__[x0:x0 + L], sign=_s)
+            # no need for P_dert_?
             P_.append(P)
             # initialize new P:
             I, G, Dy, Dx, L, x0 = 0, 0, 0, 0, 0, x
