@@ -1,7 +1,7 @@
 
 
 import CogAlg.frame_2D_alg.frame_blobs
-from CogAlg.frame_2D_alg.intra_comp import *
+from CogAlg.frame_2D_alg.intra_comp_a import *
 from CogAlg.frame_2D_alg.utils import imread, imwrite
 import cv2
 import numpy as np

@@ -1,8 +1,7 @@
 from time import time
 from collections import deque, defaultdict
 import numpy as np
-from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
-from CogAlg.frame_2D_alg.utils import *
+from utils import *
 
 '''
     2D version of first-level core algorithm will have frame_blobs, intra_blob (recursive search within blobs), and comp_P.
@@ -24,7 +23,7 @@ from CogAlg.frame_2D_alg.utils import *
     - map, # inverted mask
     - dert__,  # 2D array of pixel-level derts: (p, g, dy, dx) tuples
     - stack_,  # contains intermediate blob composition structures: stacks and Ps, not meaningful on their own
-    ( intra_blob structure extends Dert, adds crit, rng, fork_)
+    ( intra_blob structure extends Dert, adds next and layer_)
     Blob is 2D pattern: connectivity cluster defined by the sign of gradient deviation. Gradient represents 2D variation
     per pixel. It is used as inverse measure of partial match (predictive value) because direct match (min intensity) 
     is not meaningful in vision. Intensity of reflected light doesn't correlate with predictive value of observed object 
@@ -42,24 +41,40 @@ from CogAlg.frame_2D_alg.utils import *
 kwidth = 3  # smallest input-centered kernel: frame | blob shrink by 2 pixels per row
 ave = 30  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
 
+
 # ----------------------------------------------------------------------------------------------------------------------------------------
 # Functions
 
 # prefix '_' denotes higher-line variable or structure, vs. same-type lower-line variable or structure
 # postfix '_' denotes array name, vs. same-name elements of that array
 
-def image_to_blobs(image):
+def comp_pixel(image):  # current version of 2x2 pixel cross-correlation within image
 
+    # four slices are inputs to a sliding 2x2 kernel:
+    topleft__ = image[:-1, :-1]
+    topright__ = image[:-1, 1:]
+    botleft__ = image[1:, :-1]
+    botright__ = image[1:, 1:]
+
+    dy__ = ((botleft__ + botright__) - (topleft__ + topright__))  # decomposed diagonal from left
+    dx__ = ((topright__ + botright__) - (topleft__ + botleft__))  # decomposed diagonal from right
+    g__  = np.hypot(dy__, dx__)  # gradient per kernel
+
+    return ma.stack((topleft__, g__, dy__, dx__))
+
+
+def image_to_blobs(image):
     dert__ = comp_pixel(image)  # 2x2 cross-comparison / cross-correlation
 
-    frame = dict(rng=1, dert__=dert__, mask=None, I=0, G=0, Dy=0, Dx=0, blob__=[])
+    frame = dict(rng=1, dert__=dert__, I=0, G=0, Dy=0, Dx=0, blob__=[])
     stack_ = deque()  # buffer of running vertical stacks of Ps
     height, width = dert__.shape[1:]
 
     for y in range(height):  # first and last row are discarded
         print(f'Processing line {y}...')
-        P_ = form_P_(dert__[:, y].T)      # no .T? horizontal clustering
-        P_ = scan_P_(P_, stack_, frame)   # vertical clustering, adds up_forks per P and down_fork_cnt per stack
+
+        P_ = form_P_(dert__[:, y].T)  # horizontal clustering
+        P_ = scan_P_(P_, stack_, frame)  # vertical clustering, adds up_forks per P and down_fork_cnt per stack
         stack_ = form_stack_(y, P_, frame)
 
     while stack_:  # frame ends, last-line stacks are merged into their blobs:
@@ -74,37 +89,38 @@ Parameterized connectivity clustering functions below:
 - form_stack combines these overlapping Ps into vertical stacks of Ps, with 1 up_P to 1 down_P
 - form_blob merges terminated or forking stacks into blob, removes redundant representations of the same blob 
   by multiple forked P stacks, then checks for blob termination and merger into whole-frame representation.
-  
 dert: tuple of derivatives per pixel, initially (p, dy, dx, g, i), will be extended in intra_blob
 Dert: params of composite structures (P, stack, blob): summed dert params + dimensions: vertical Ly and area S
 '''
+
 
 def form_P_(dert__):  # horizontal clustering and summation of dert params into P params, per row of a frame
     # P is a segment of same-sign derts in horizontal slice of a blob
 
     P_ = deque()  # row of Ps
-    I, G, Dy, Dx, L, x0 = *dert__[0], 1, 0  # initialize P params with 1st dert params
+    I, G, Dy, Dx, L, x0, dert_ = *dert__[0], 1, 0, []  # initialize P params with 1st dert params
     G = int(G) - ave
-    _s = G > 0  # sign
+    _sign = G > 0
+
     for x, (p, g, dy, dx) in enumerate(dert__[1:], start=1):
         vg = int(g) - ave  # deviation of g
-        s = vg > 0
-        if s != _s:
+        sign = vg > 0
+        if sign != _sign:
             # terminate and pack P:
-            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, dert__=dert__[x0:x0 + L], sign=_s)
-            # no need for P_dert_?
+            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, sign=_sign, dert_=dert_)
             P_.append(P)
             # initialize new P:
-            I, G, Dy, Dx, L, x0 = 0, 0, 0, 0, 0, x
+            I, G, Dy, Dx, L, x0, dert_ = 0, 0, 0, 0, 0, x, []
         # accumulate P params:
         I += p
         G += vg
         Dy += dy
         Dx += dx
         L += 1
-        _s = s  # prior sign
+        dert_.append((p, vg, dy, dx))
+        _sign = sign  # prior sign
 
-    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, dert__=dert__[x0:x0 + L], sign=_s)
+    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, sign=_sign, dert_=dert_)
     P_.append(P)  # terminate last P in a row
     return P_
 
@@ -258,10 +274,11 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
         dert__.mask[:] = mask  # default mask is all 0s
 
         blob.pop('open_stacks')
-        blob.update(root=frame,
-                    box=(y0, yn, x0, xn),  # boundary box
-                    dert__=dert__,  # includes mask, no need for map
-                    fork=defaultdict(dict)  # will contain fork params, layer_
+        blob.update(box= (y0, yn, x0, xn),  # boundary box
+                    map__= ~mask,  # to compute overlap in comp_blob
+                    dert__ =dert__,  # add map__ as dert__[0]?
+                    root = frame,
+                    fork = defaultdict(dict),  # feedback, will contain fork params, layer_
                     )
         frame.update(I=frame['I'] + blob['Dert']['I'],
                      G=frame['G'] + blob['Dert']['G'],
@@ -295,11 +312,9 @@ if __name__ == '__main__':
 
         from intra_blob_draft import *
 
-        deep_frame = frame, frame
-        # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
+        deep_frame = frame, frame  # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
 
         for blob in frame['blob__']:
-
             if blob['sign']:
                 if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
                     intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
@@ -318,52 +333,12 @@ if __name__ == '__main__':
     end_time = time() - start_time
     print(end_time)
 
-    # Check if all blobs are contiguous ---------------------------------------
-
-    i_non_contiguous = []
-    blob_non_contiguous = []
-    i_empty = []
-    blob_empty = []
-
-    # loop across all blobs
-    for i, blob in enumerate(frame['blob__']):
-            dert__ = blob['dert__']
-            # loop in each row
-            for y in range(dert__.shape[0]):
-
-                # if there is no unmasked dert in the row but there is some unmasked dert within the blob
-                if (False in dert__.mask[0][y,:]) == False and (False in dert__.mask[0]) == True:
-
-
-                    blob_non_contiguous.append(blob)
-                    i_non_contiguous.append(i)
-
-                    break
-
-                # if there is totally no unmasked dert in the blob
-                if (False in dert__.mask[0]) == False:
-
-
-                    blob_empty.append(blob)
-                    i_empty.append(i)
-
-                    break
-
-                break
-
-    # from my checking here, there are some blob with all masked value, is that normal?
-    # you may check 'blob_empty' on this
-
-    # also there some blobs with masked value on first 1 row or last row, but why we would include those masked row in the blob? We could just remove those rows from the blob
-    # you may check 'blob_non_contiguous' on this
-
-
     # DEBUG -------------------------------------------------------------------
     imwrite("images/gblobs.bmp",
-        map_frame_binary(frame,
-                         sign_map={
-                             1: WHITE,  # 2x2 gblobs
-                             0: BLACK
-                         }))
+            map_frame_binary(frame,
+                             sign_map={
+                                 1: WHITE,  # 2x2 gblobs
+                                 0: BLACK
+                             }))
 
-    # END DEBUG ---------------------------------------------------------------    # END DEBUG ---------------------------------------------------------------
+    # END DEBUG ---------------------------------------------------------------

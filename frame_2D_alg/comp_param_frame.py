@@ -8,7 +8,7 @@ import cv2
 
 from CogAlg.frame_2D_alg.frame_blobs import ave, image_to_blobs
 from CogAlg.frame_2D_alg.intra_blob_draft import *
-from CogAlg.frame_2D_alg.intra_comp import *
+from CogAlg.frame_2D_alg.intra_comp_a import *
 from CogAlg.frame_2D_alg.utils import imwrite, map_frame_binary
 
 # -----------------------------------------------------------------------------

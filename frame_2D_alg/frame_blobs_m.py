@@ -1,8 +1,8 @@
 from time import time
 from collections import deque, defaultdict
 import numpy as np
-from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
-from CogAlg.frame_2D_alg.utils import *
+from comp_pixel import comp_pixel_m
+from utils import *
 
 '''
     2D version of first-level core algorithm will have frame_blobs, intra_blob (recursive search within blobs), and comp_P.
@@ -32,15 +32,18 @@ from CogAlg.frame_2D_alg.utils import *
     This is clustering by connectivity because distance between clustered pixels should not exceed cross-comparison range.
     That range is fixed for each layer of search, to enable encoding of input pose parameters: coordinates, dimensions, 
     orientation. These params are essential because value of prediction = precision of what * precision of where. 
-    frame_blobs is a complex function with a simple purpose: to sum pixel-level params in blob-level params. These params 
-    were derived by pixel cross-comparison (cross-correlation) to represent predictive value per pixel, so they are also
+    frame_blobs is a complex function with a simple purpose: to sum pixel-level params in blob-level params. 
+
+    Params are derived by pixel cross-comp (cross-correlation) to represent predictive value per pixel, so they are also
     predictive on a blob level, and should be cross-compared between blobs on the next level of search and composition.
     Please see diagrams of frame_blobs on https://kwcckw.github.io/CogAlg/
 '''
 # Adjustable parameters:
 
 kwidth = 3  # smallest input-centered kernel: frame | blob shrink by 2 pixels per row
-ave = 30  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
+ave_g = 28  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
+ave = 28  # main criterion for forking
+
 
 # ----------------------------------------------------------------------------------------------------------------------------------------
 # Functions
@@ -49,23 +52,23 @@ ave = 30  # filter or hyper-parameter, set as a guess, latter adjusted by feedba
 # postfix '_' denotes array name, vs. same-name elements of that array
 
 def image_to_blobs(image):
+    dert__ = comp_pixel_m(image)  # 2x2 cross-comparison / cross-correlation
 
-    dert__ = comp_pixel(image)  # 2x2 cross-comparison / cross-correlation
-
-    frame = dict(rng=1, dert__=dert__, mask=None, I=0, G=0, Dy=0, Dx=0, blob__=[])
+    frame = dict(rng=1, dert__=dert__, mask=None, I=0, G=0, Dy=0, Dx=0, M=0, blob__=[])
     stack_ = deque()  # buffer of running vertical stacks of Ps
     height, width = dert__.shape[1:]
 
-    for y in range(height):  # first and last row are discarded
+    for y in range(height - 700):  # first and last row are discarded
         print(f'Processing line {y}...')
-        P_ = form_P_(dert__[:, y].T)      # no .T? horizontal clustering
-        P_ = scan_P_(P_, stack_, frame)   # vertical clustering, adds up_forks per P and down_fork_cnt per stack
+        P_ = form_P_(dert__[:, y].T)  # horizontal clustering
+        P_ = scan_P_(P_, stack_, frame)  # vertical clustering, adds up_forks per P and down_fork_cnt per stack
         stack_ = form_stack_(y, P_, frame)
 
     while stack_:  # frame ends, last-line stacks are merged into their blobs:
         form_blob(stack_.popleft(), frame)
 
     return frame  # frame of blobs
+
 
 ''' 
 Parameterized connectivity clustering functions below:
@@ -74,37 +77,39 @@ Parameterized connectivity clustering functions below:
 - form_stack combines these overlapping Ps into vertical stacks of Ps, with 1 up_P to 1 down_P
 - form_blob merges terminated or forking stacks into blob, removes redundant representations of the same blob 
   by multiple forked P stacks, then checks for blob termination and merger into whole-frame representation.
-  
 dert: tuple of derivatives per pixel, initially (p, dy, dx, g, i), will be extended in intra_blob
 Dert: params of composite structures (P, stack, blob): summed dert params + dimensions: vertical Ly and area S
 '''
+
 
 def form_P_(dert__):  # horizontal clustering and summation of dert params into P params, per row of a frame
     # P is a segment of same-sign derts in horizontal slice of a blob
 
     P_ = deque()  # row of Ps
-    I, G, Dy, Dx, L, x0 = *dert__[0], 1, 0  # initialize P params with 1st dert params
-    G = int(G) - ave
-    _s = G > 0  # sign
-    for x, (p, g, dy, dx) in enumerate(dert__[1:], start=1):
-        vg = int(g) - ave  # deviation of g
-        s = vg > 0
+    I, G, Dy, Dx, M, L, x0 = *dert__[0], 1, 0  # initialize P params with 1st dert params
+    G = int(G) - ave_g
+    M = ave - M
+    _s = M > 0  # sign
+    for x, (p, g, dy, dx, m) in enumerate(dert__[1:], start=1):
+        vg = int(g) - ave_g  # deviation of g
+        vm = ave - m  # inverse deviation of variation
+        s = vm > 0
         if s != _s:
             # terminate and pack P:
-            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, dert__=dert__[x0:x0 + L], sign=_s)
-            # no need for P_dert_?
+            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, dert__=dert__[x0:x0 + L], sign=_s)
             P_.append(P)
             # initialize new P:
-            I, G, Dy, Dx, L, x0 = 0, 0, 0, 0, 0, x
+            I, G, Dy, Dx, M, L, x0 = 0, 0, 0, 0, 0, 0, x
         # accumulate P params:
         I += p
         G += vg
         Dy += dy
         Dx += dx
+        M += vm
         L += 1
         _s = s  # prior sign
 
-    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, dert__=dert__[x0:x0 + L], sign=_s)
+    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, dert__=dert__[x0:x0 + L], sign=_s)
     P_.append(P)  # terminate last P in a row
     return P_
 
@@ -176,18 +181,19 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
     while P_:
         P, up_fork_ = P_.popleft()
         s = P.pop('sign')
-        I, G, Dy, Dx, L, x0, dert__ = P.values()
+        I, G, Dy, Dx, M, L, x0, dert__ = P.values()
         xn = x0 + L  # next-P x0
         if not up_fork_:
-            # initialize new stack for each input-row P that has no connections in higher row:
-            blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, S=0, Ly=0), box=[y, x0, xn], stack_=[], sign=s, open_stacks=1)
-            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
+            # initialize blob for each input-row P that has no connections in higher row:
+            blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, M=0, S=0, Ly=0), box=[y, x0, xn], stack_=[], sign=s,
+                        open_stacks=1)
+            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
             blob['stack_'].append(new_stack)
         else:
             if len(up_fork_) == 1 and up_fork_[0]['down_fork_cnt'] == 1:
                 # P has one up_fork and that up_fork has one root: merge P into up_fork stack:
                 new_stack = up_fork_[0]
-                accum_Dert(new_stack, I=I, G=G, Dy=Dy, Dx=Dx, S=L, Ly=1)
+                accum_Dert(new_stack, I=I, G=G, Dy=Dy, Dx=Dx, M=M, S=L, Ly=1)
                 new_stack['Py_'].append(P)  # Py_: vertical buffer of Ps
                 new_stack['down_fork_cnt'] = 0  # reset down_fork_cnt
                 blob = new_stack['blob']
@@ -195,7 +201,8 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
             else:  # if > 1 up_forks, or 1 up_fork that has > 1 down_fork_cnt:
                 blob = up_fork_[0]['blob']
                 # initialize new_stack with up_fork blob:
-                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
+                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0,
+                                 sign=s)
                 blob['stack_'].append(new_stack)  # stack is buffered into blob
 
                 if len(up_fork_) > 1:  # merge blobs of all up_forks
@@ -208,8 +215,8 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
 
                         if not up_fork['blob'] is blob:
                             Dert, box, stack_, s, open_stacks = up_fork['blob'].values()  # merged blob
-                            I, G, Dy, Dx, S, Ly = Dert.values()
-                            accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly)
+                            I, G, Dy, Dx, M, S, Ly = Dert.values()
+                            accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, M=M, S=S, Ly=Ly)
                             blob['open_stacks'] += open_stacks
                             blob['box'][0] = min(blob['box'][0], box[0])  # extend box y0
                             blob['box'][1] = min(blob['box'][1], box[1])  # extend box x0
@@ -232,15 +239,15 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
 
 def form_blob(stack, frame):  # increment blob with terminated stack, check for blob termination and merger into frame
 
-    I, G, Dy, Dx, S, Ly, y0, Py_, blob, down_fork_cnt, sign = stack.values()
-    accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly)
+    I, G, Dy, Dx, M, S, Ly, y0, Py_, blob, down_fork_cnt, sign = stack.values()
+    accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, M=M, S=S, Ly=Ly)
     # terminated stack is merged into continued or initialized blob (all connected stacks):
 
     blob['open_stacks'] += down_fork_cnt - 1  # incomplete stack cnt + terminated stack down_fork_cnt - 1: stack itself
     # open stacks contain Ps of a current row and may be extended with new x-overlapping Ps in next run of scan_P_
 
-    if blob['open_stacks'] == 0:  # if number of incomplete stacks == 0
-        # blob is terminated and packed in frame:
+    if blob['open_stacks'] == 0:  # if number of incomplete stacks == 0:
+        # blob is terminated and packed in frame
         last_stack = stack
 
         Dert, [y0, x0, xn], stack_, s, open_stacks = blob.values()
@@ -258,23 +265,28 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
         dert__.mask[:] = mask  # default mask is all 0s
 
         blob.pop('open_stacks')
-        blob.update(root=frame,
-                    box=(y0, yn, x0, xn),  # boundary box
-                    dert__=dert__,  # includes mask, no need for map
-                    fork=defaultdict(dict)  # will contain fork params, layer_
+        blob.update(box=(y0, yn, x0, xn),  # boundary box
+                    map=~mask,  # to compute overlap in comp_blob
+                    rng=1,  # if 3x3 kernel
+                    dert__=dert__,  # dert__ + box replace slices=(Ellipsis, slice(y0, yn), slice(x0, xn))
+                    root_fork=frame,
+                    fork_=defaultdict(dict),  # or []? contains forks ( sub-blobs
                     )
         frame.update(I=frame['I'] + blob['Dert']['I'],
                      G=frame['G'] + blob['Dert']['G'],
                      Dy=frame['Dy'] + blob['Dert']['Dy'],
-                     Dx=frame['Dx'] + blob['Dert']['Dx'])
+                     Dx=frame['Dx'] + blob['Dert']['Dx'],
+                     M=frame['M'] + blob['Dert']['M'])
 
         frame['blob__'].append(blob)
+
 
 # -----------------------------------------------------------------------------
 # Utilities
 
 def accum_Dert(Dert: dict, **params) -> None:
     Dert.update({param: Dert[param] + value for param, value in params.items()})
+
 
 # -----------------------------------------------------------------------------
 # Main
@@ -289,81 +301,42 @@ if __name__ == '__main__':
 
     start_time = time()
     frame = image_to_blobs(image)
+    from intra_blob_draft import *
 
-    intra = 0
+    intra = 1
     if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
 
         from intra_blob_draft import *
 
-        deep_frame = frame, frame
-        # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
+        deep_frame = frame, frame  # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
 
         for blob in frame['blob__']:
-
             if blob['sign']:
                 if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
-                    intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
+                    intra_blob(blob, rdn=1, rng=0, fig=0, fcr=0)
+                    # +G blob' comp_a, form 2x2 aderts = ga, day, dax, -> comp_ga if +Ga, else comp_g if -Ga
 
-            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
-                intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
-                '''
-                with feedback:
-                dert__ = comp_a|r(blob['dert__'], rng=1)  
-                deep_frame['layer_'] = intra_blob(blob, dert__, rng=3, rdn=1, fig=0, fca=0)  
-                deep_frame['blob_'].append(blob)  # extended by cluster_eval
-                deep_frame['params'][1:] += blob['params'][1:]  # incorrect, for selected blob params only?
-                '''
+                elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
+                    intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)
+                    # -G blob' comp_r, form 3x3 rderts = dert, -> comp_a if +G, else comp_rng if -G
+                    '''
+                    with feedback:
+                    dert__ = comp_a|r(blob['dert__'], rng=1)  
+                    deep_frame['layer_'] = intra_blob(blob, dert__, rng=3, rdn=1, fig=0, fca=0)  
+                    deep_frame['blob_'].append(blob)  # extended by cluster_eval
+                    deep_frame['params'][1:] += blob['params'][1:]  # incorrect, for selected blob params only?
+                    '''
             # else no intra_blob call
 
     end_time = time() - start_time
     print(end_time)
 
-    # Check if all blobs are contiguous ---------------------------------------
-
-    i_non_contiguous = []
-    blob_non_contiguous = []
-    i_empty = []
-    blob_empty = []
-
-    # loop across all blobs
-    for i, blob in enumerate(frame['blob__']):
-            dert__ = blob['dert__']
-            # loop in each row
-            for y in range(dert__.shape[0]):
-
-                # if there is no unmasked dert in the row but there is some unmasked dert within the blob
-                if (False in dert__.mask[0][y,:]) == False and (False in dert__.mask[0]) == True:
-
-
-                    blob_non_contiguous.append(blob)
-                    i_non_contiguous.append(i)
-
-                    break
-
-                # if there is totally no unmasked dert in the blob
-                if (False in dert__.mask[0]) == False:
-
-
-                    blob_empty.append(blob)
-                    i_empty.append(i)
-
-                    break
-
-                break
-
-    # from my checking here, there are some blob with all masked value, is that normal?
-    # you may check 'blob_empty' on this
-
-    # also there some blobs with masked value on first 1 row or last row, but why we would include those masked row in the blob? We could just remove those rows from the blob
-    # you may check 'blob_non_contiguous' on this
-
-
     # DEBUG -------------------------------------------------------------------
-    imwrite("images/gblobs.bmp",
-        map_frame_binary(frame,
-                         sign_map={
-                             1: WHITE,  # 2x2 gblobs
-                             0: BLACK
-                         }))
+    imwrite("images/mblobs.bmp",
+            map_frame_binary(frame,
+                             sign_map={
+                                 1: BLACK,  # 2x2 gblobs
+                                 0: WHITE
+                             }))
 
-    # END DEBUG ---------------------------------------------------------------    # END DEBUG ---------------------------------------------------------------
+    # END DEBUG ---------------------------------------------------------------

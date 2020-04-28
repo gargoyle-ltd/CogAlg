@@ -4,7 +4,7 @@ Visualize each comp's output with image output
 """
 
 from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
-from CogAlg.frame_2D_alg.intra_comp import *
+from CogAlg.frame_2D_alg.intra_comp_a import *
 from CogAlg.frame_2D_alg.utils import imread, imwrite
 import cv2
 import numpy as np
@@ -114,6 +114,7 @@ if __name__ == "__main__":
     # comp_p ->
     gr_dert_ = comp_r(dert_, fig = 0, root_fcr = 0)         # if   +M
     gg_dert_ = comp_g(dert_)                                # elif +G
+    print(len(gg_dert_), len(gg_dert_.mask))
 
 
     print('Processing second layer comps...')

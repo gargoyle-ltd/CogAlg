@@ -3,7 +3,7 @@ from collections import deque, defaultdict
 from itertools import groupby, starmap, zip_longest
 import numpy as np
 import numpy.ma as ma
-from CogAlg.frame_2D_alg.intra_comp import *
+from CogAlg.frame_2D_alg.intra_comp_a import *
 from CogAlg.frame_2D_alg.utils import pairwise, flatten
 from functools import reduce
 
@@ -102,56 +102,58 @@ def cluster_derts(blob, dert__, Ave, fcr, fig):  # fig selects param keys
 def form_P__(dert__, Ave, fcr, fig):  # segment dert__ into P__, in horizontal ) vertical order
 
     # compute fork clustering criterion, crit__ and dert__ are 2D arrays:
-    if fcr:
-        if fig:
-            crit__ = dert__[0] + dert__[4] - Ave  # comp_r output eval by i + m, accumulated
-        else:
-            crit__ = Ave - dert__[1]  # comp_r output eval by inverted g, accumulated
-    else:
+
+    if fcr:   # comp_r output
+        if fig: crit__ = dert__[0] + dert__[4] - Ave  # eval by i + m, accumulated in rng
+        else:   crit__ = Ave - dert__[1]              # eval by -g, accumulated
+    else:     # comp_g output
         crit__ = dert__[4] - Ave  # comp_g output eval by m, or clustering is always by m?
 
     P__ = []
+    new_mask = np.ones[dert__.shape]
+
     for y in range(dert__.shape[1]):  # segment row dert_ into same-sign Ps:
 
-        mask_ = dert__.mask[0][y, :]
-        i_ = dert__[0][y, :]
-        g_ = dert__[1][y, :]
+        mask_ = dert__[0].mask[y, :]
+        i_  = dert__[0][y, :]
+        g_  = dert__[1][y, :]
         dy_ = dert__[2][y, :]
         dx_ = dert__[3][y, :]
-        m_ = dert__[4][y, :]
+        m_  = dert__[4][y, :]
         if fig:
             idy_ = dert__[5][y, :]
             idx_ = dert__[6][y, :]
         P_ = []
         sign_ = crit__[y, :] > 0
-        _sign = sign_[0]
-        _mask = mask_[0]
 
-        for x in range(len(i_[y])):
+        for x in range(len(i_)-1):  # -1 because x starts with 0
             if not i_.mask[x]:
-                x0 = x # the coordinate of first non-masked value in line
+                x0 = x  # coordinate of first not-masked dert in line
                 break
-
         # initialize P params:
-        I, G, Dy, Dx, M, L, x0 = i_[x0], g_[x0], dy_[x0], dx_[x0], m_[x0], 1, 0
-        if fig: iDy, iDx = idy_[x0], idx_[x0]
+        I, G, Dy, Dx, M, L = i_[x0], g_[x0], dy_[x0], dx_[x0], m_[x0], 1
+        if fig:
+            iDy, iDx = idy_[x0], idx_[x0]
+        _sign = sign_[x0]
+        _mask = False
 
-        for x in range(x0, dert__.shape[2]):  # loop left to right in each row
+        for x in range(x0+1, dert__.shape[2]):  # loop left to right in each row
             sign = sign_[x]
             mask = mask_[x]
-            if (~_mask and mask) or sign_ != _sign:  # shouldn`t it be and?
+            if (~_mask and mask) or sign_ != _sign:
                 # (P exists and input is not in blob) or sign changed, terminate and pack P:
 
                 P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, sign=_sign)
                 if fig:
                     P.update(iDy=iDy, iDx=iDx)
-                # no need for dert_, derts can be accessed from blob.dert__
+                new_mask[x0: x0 + L] = np.zeros  # for terminated blob' dert__.mask = new_mask
+                # no dert_, derts are accessed from blob.dert__
                 P_.append(P)
                 # initialize P params:
                 I, G, Dy, Dx, M, L, x0 = 0, 0, 0, 0, 0, 0, x
                 if fig: iDy, iDx = 0, 0
 
-            if map:  # accumulate P params:
+            if ~mask:  # accumulate P params:
                 I += i_[x]
                 G += g_[x]
                 Dy += dy_[x]
@@ -160,14 +162,15 @@ def form_P__(dert__, Ave, fcr, fig):  # segment dert__ into P__, in horizontal )
                 if fig: iDy, iDx = idy_[x], idx_[x]
                 L += 1
                 _sign = sign  # prior sign
-                mask = np.ones((x0 + L - x0), dtype=bool)
+            _mask = mask
 
         # terminate last P in a row
         P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, sign=_sign)
         if fig:
             P.update(iDy=iDy, iDx=iDx)
+        new_mask[x0: x0 + L] = np.zeros
         P_.append(P)
-        P__[y] = P_  # pack P_row in P_blob
+        P__[y] = P_  # pack P row in P box
 
     return P__
 

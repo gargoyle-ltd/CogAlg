@@ -65,7 +65,7 @@ if __name__ == "__main__":
     import numpy as np
     import numpy.ma as ma
 
-    from intra_comp_ts import (
+    from intra_comp import (
         Y_COEFFS, X_COEFFS,
         central_slice,
         rim_mask,
