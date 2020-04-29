@@ -1,8 +1,8 @@
 from time import time
 from collections import deque, defaultdict
 import numpy as np
-from comp_pixel import comp_pixel_m
-from utils import *
+from CogAlg.frame_2D_alg.comp_pixel import comp_pixel_m
+from CogAlg.frame_2D_alg.utils import *
 
 '''
     2D version of first-level core algorithm will have frame_blobs, intra_blob (recursive search within blobs), and comp_P.
@@ -301,7 +301,7 @@ if __name__ == '__main__':
 
     start_time = time()
     frame = image_to_blobs(image)
-    from intra_blob_draft import *
+    from CogAlg.frame_2D_alg.intra_blob_draft import *
 
     intra = 1
     if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:

@@ -3,8 +3,8 @@ For testing intra_comp operations and 3 layers of intra_comp's forks
 Visualize each comp's output with image output
 """
 
-from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
-from CogAlg.frame_2D_alg.intra_comp_a import *
+from CogAlg.frame_2D_alg.comp_pixel import comp_pixel_m
+from CogAlg.frame_2D_alg.intra_comp import *
 from CogAlg.frame_2D_alg.utils import imread, imwrite
 import cv2
 import numpy as np
@@ -13,7 +13,7 @@ import numpy as np
 # Input:
 IMAGE_PATH = "./images/raccoon.jpg"
 # Outputs:
-OUTPUT_PATH = "./images/intra_comp2/"
+OUTPUT_PATH = "./images/intra_comp/"
 
 # -----------------------------------------------------------------------------
 # Functions
@@ -26,76 +26,12 @@ def draw_g(img_out, g_):
 
     return img_out.astype('uint8')
 
-def draw_ga(img_out, g_):
-
-    for y in range(g_.shape[0]):
-        for x in range(g_.shape[1]):
-            img_out[y,x] = g_[y,x]
-
-    img_out = img_out * 180/np.pi  # convert to degrees
-    img_out = (img_out /180 )*255  # scale 0 to 180 degree into 0 to 255
-
-    return img_out.astype('uint8')
-
 def draw_gr(img_out, g_, rng):
 
     for y in range(g_.shape[0]):
         for x in range(g_.shape[1]):
             # project central dert to surrounding rim derts
             img_out[(y*rng)+1:(y*rng)+1+rng,(x*rng)+1:(x*rng)+1+rng] = g_[y,x]
-
-    return img_out.astype('uint8')
-
-def draw_gar(img_out, g_, rng):
-
-    for y in range(g_.shape[0]):
-        for x in range(g_.shape[1]):
-            # project central dert to surrounding rim derts
-            img_out[(y*rng)+1:(y*rng)+3,(x*rng)+1:(x*rng)+3] = g_[y,x]
-
-    img_out = img_out * 180/np.pi  # convert to degrees
-    img_out = (img_out /180 )*255  # scale 0 to 180 degree into 0 to 255
-
-    return img_out.astype('uint8')
-
-
-def draw_m(img_out, m_):
-
-    for y in range(m_.shape[0]):  # loop rows, skip last row
-        for x in range(m_.shape[1]):  # loop columns, skip last column
-            img_out[y,x] = m_[y,x]
-
-    return img_out.astype('uint8')
-
-def draw_ma(img_out, m_):
-
-    for y in range(m_.shape[0]):
-        for x in range(m_.shape[1]):
-            img_out[y,x] = m_[y,x]
-
-    img_out = img_out * 180/np.pi  # convert to degrees
-    img_out = (img_out /180 )*255  # scale 0 to 180 degree into 0 to 255
-
-    return img_out.astype('uint8')
-
-def draw_mr(img_out, m_, rng):
-
-    for y in range(m_.shape[0]):
-        for x in range(m_.shape[1]):
-            # project central dert to surrounding rim derts
-            img_out[(y*rng)+1:(y*rng)+1+rng,(x*rng)+1:(x*rng)+1+rng] = m_[y,x]
-
-    return img_out.astype('uint8')
-
-def draw_mar(img_out, m_, rng):
-
-    for y in range(m_.shape[0]):
-        for x in range(m_.shape[1]):
-            # project central dert to surrounding rim derts
-            img_out[(y*rng)+1:(y*rng)+3,(x*rng)+1:(x*rng)+3] = m_[y,x]
-
-    img_out = img_out * 180/np.pi  # convert to degrees
-    img_out = (img_out /180 )*255  # scale 0 to 180 degree into 0 to 255
 
     return img_out.astype('uint8')
 
@@ -108,29 +44,26 @@ if __name__ == "__main__":
     print('Reading image...')
     image = imread(IMAGE_PATH)
 
-    dert_ = comp_pixel(image)
+    dert_ = comp_pixel_m(image)
 
     print('Processing first layer comps...')
     # comp_p ->
     gr_dert_ = comp_r(dert_, fig = 0, root_fcr = 0)         # if   +M
     gg_dert_ = comp_g(dert_)                                # elif +G
-    print(len(gg_dert_), len(gg_dert_.mask))
-
 
     print('Processing second layer comps...')
     # comp_g ->
     grg_dert_  = comp_r(gg_dert_, fig = 1, root_fcr = 0)    # if   +Mg
     ggg_dert_  = comp_g(gg_dert_)                           # elif +Gg
-    # comp_rng_p ->
+    # comp_r ->
     grr_dert_  = comp_r(gr_dert_, fig = 0, root_fcr = 1)    # if   +Mr
     ggr_dert_  = comp_g(gr_dert_)                           # elif +Gr
-
 
     print('Processing third layer comps...')
     # comp_gg ->
     grgg_dert_ = comp_r(ggg_dert_, fig = 1, root_fcr = 0)   # if   +Mgg
     gggg_dert_ = comp_g(ggg_dert_)                          # elif +Ggg
-    # comp_rng_g ->
+    # comp_rg ->
     grrg_dert_  = comp_r(grg_dert_, fig = 0, root_fcr = 1)  # if   +Mrg
     ggrg_dert_ = comp_g(grg_dert_)                          # elif +Grg
     # comp_gr ->
@@ -147,37 +80,37 @@ if __name__ == "__main__":
     g_ = draw_g(ini_.copy(), dert_[1])
     m_ = draw_g(ini_.copy(), dert_[4])
     # 1st layer
-    gg_ = draw_g(ini_.copy(), gg_dert_[1])  # angle doesn't output m
-    mg_ = draw_m(ini_.copy(), gg_dert_[4])
+    gg_ = draw_g(ini_.copy(), gg_dert_[1])
+    mg_ = draw_g(ini_.copy(), gg_dert_[4])
     gr_ = draw_gr(ini_.copy(), gr_dert_[1], rng=2)
-    mr_ = draw_mr(ini_.copy(), gr_dert_[4], rng=2)
+    mr_ = draw_gr(ini_.copy(), gr_dert_[4], rng=2)
     # 2nd layer
     ggg_ = draw_g(ini_.copy(), ggg_dert_[1])
-    mgg_ = draw_m(ini_.copy(), ggg_dert_[4])
-    grg_ =   draw_gr(ini_.copy(),  grg_dert_[1], rng=2)
-    mrg_ =   draw_mr(ini_.copy(),  grg_dert_[4], rng=2)
+    mgg_ = draw_g(ini_.copy(), ggg_dert_[4])
+    grg_ = draw_gr(ini_.copy(), grg_dert_[1], rng=2)
+    mrg_ = draw_gr(ini_.copy(), grg_dert_[4], rng=2)
     ggr_ = draw_gr(ini_.copy(), ggr_dert_[1], rng=2)
-    mgr_ = draw_mr(ini_.copy(), ggr_dert_[4], rng=2)
-    grr_ =  draw_gr(ini_.copy(),  grr_dert_[1], rng=4)
-    mrr_ =  draw_mr(ini_.copy(),  grr_dert_[4], rng=4)
+    mgr_ = draw_gr(ini_.copy(), ggr_dert_[4], rng=2)
+    grr_ = draw_gr(ini_.copy(), grr_dert_[1], rng=4)
+    mrr_ = draw_gr(ini_.copy(), grr_dert_[4], rng=4)
 
     # 3rd layer
     gggg_ = draw_g(ini_.copy(), gggg_dert_[1])
-    mggg_ = draw_m(ini_.copy(), gggg_dert_[4])
-    grgg_    = draw_gr(ini_.copy(),  grgg_dert_[1], rng=2)
-    mrgg_    = draw_mr(ini_.copy(), grgg_dert_[4], rng=2)
-    ggrg_   = draw_gr(ini_.copy(), ggrg_dert_[1], rng=2)
-    mgrg_   = draw_mr(ini_.copy(), ggrg_dert_[4], rng=2)
-    grrg_    = draw_gr(ini_.copy(), grrg_dert_[1], rng=4)
-    mrrg_    = draw_mr(ini_.copy(), grrg_dert_[4], rng=4)
+    mggg_ = draw_g(ini_.copy(), gggg_dert_[4])
+    grgg_ = draw_gr(ini_.copy(), grgg_dert_[1], rng=2)
+    mrgg_ = draw_gr(ini_.copy(), grgg_dert_[4], rng=2)
+    ggrg_ = draw_gr(ini_.copy(), ggrg_dert_[1], rng=2)
+    mgrg_ = draw_gr(ini_.copy(), ggrg_dert_[4], rng=2)
+    grrg_ = draw_gr(ini_.copy(), grrg_dert_[1], rng=4)
+    mrrg_ = draw_gr(ini_.copy(), grrg_dert_[4], rng=4)
     gggr_ = draw_gr(ini_.copy(), gggr_dert_[1], rng=2)
-    mggr_ = draw_mr(ini_.copy(), gggr_dert_[4], rng=2)
-    grgr_    = draw_gr(ini_.copy(),  grgr_dert_[1], rng=4)
-    mrgr_    = draw_mr(ini_.copy(),  grgr_dert_[4], rng=4)
-    ggrr_  = draw_gr(ini_.copy(), ggrr_dert_[1], rng=4)
-    mgrr_  = draw_mr(ini_.copy(), ggrr_dert_[4], rng=4)
-    grrr_   = draw_gr(ini_.copy(),  grrr_dert_[1], rng=8)
-    mrrr_   = draw_mr(ini_.copy(),  grrr_dert_[4], rng=8)
+    mggr_ = draw_gr(ini_.copy(), gggr_dert_[4], rng=2)
+    grgr_ = draw_gr(ini_.copy(), grgr_dert_[1], rng=4)
+    mrgr_ = draw_gr(ini_.copy(), grgr_dert_[4], rng=4)
+    ggrr_ = draw_gr(ini_.copy(), ggrr_dert_[1], rng=4)
+    mgrr_ = draw_gr(ini_.copy(), ggrr_dert_[4], rng=4)
+    grrr_ = draw_gr(ini_.copy(), grrr_dert_[1], rng=8)
+    mrrr_ = draw_gr(ini_.copy(), grrr_dert_[4], rng=8)
 
     # save to disk
     cv2.imwrite(OUTPUT_PATH+'0_g.png', g_)
@@ -228,4 +161,3 @@ def add_colour(img_comp,size_y,size_x):
     img_colour = np.rollaxis(img_colour,0,3).astype('uint8')
 
     return img_colour
-
