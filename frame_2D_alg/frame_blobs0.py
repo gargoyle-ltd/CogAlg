@@ -100,7 +100,6 @@ def form_P_(dert_, y):  # horizontal clustering and summation of dert params int
     I, G, Dy, Dx, L, x0 = *dert_[0], 1, 0  # initialize P params with 1st dert params
     G = int(G) - ave
     _sign = G > 0
-    mask = np.ones((1, dert_.shape[2]))  # mask for P which
 
     for x, (p, g, dy, dx) in enumerate(dert_[1:], start=1):
         vg = int(g) - ave  # deviation of g
@@ -108,7 +107,6 @@ def form_P_(dert_, y):  # horizontal clustering and summation of dert params int
         if sign != _sign:
             # terminate and pack P:
             P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, sign=_sign)
-            mask[x0: x0 + L] = 0
             P_.append(P)
             # initialize new P:
             I, G, Dy, Dx, L, x0, dert_ = 0, 0, 0, 0, 0, x, []
@@ -120,9 +118,8 @@ def form_P_(dert_, y):  # horizontal clustering and summation of dert params int
         L += 1
         _sign = sign  # prior sign
 
-    mask[x0: x0 + L] = 0
     # terminate and pack last P in row
-    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, sign=_sign, mask=mask)
+    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, L=L, x0=x0, sign=_sign)
     P_.append(P)
 
     return P_
