@@ -198,6 +198,8 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
         s = P.pop('sign')
         I, G, Dy, Dx, L, x0, dert__ = P.values()
         xn = x0 + L  # next-P x0
+        mask = np.ones((dert__.shape[1], dert__.shape[2]))
+
         if not up_fork_:
             # initialize new stack for each input-row P that has no connections in higher row:
             blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, S=0, Ly=0), box=[y, x0, xn], stack_=[], sign=s, open_stacks=1)
@@ -215,7 +217,9 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
             else:  # if > 1 up_forks, or 1 up_fork that has > 1 down_fork_cnt:
                 blob = up_fork_[0]['blob']
                 # initialize new_stack with up_fork blob:
-                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
+                mask[y, x0:xn] = 0
+                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0,
+                                 sign=s, mask=mask)
                 blob['stack_'].append(new_stack)  # stack is buffered into blob
 
                 if len(up_fork_) > 1:  # merge blobs of all up_forks
