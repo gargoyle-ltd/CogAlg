@@ -195,12 +195,12 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
         s = P.pop('sign')
         I, G, Dy, Dx, L, x0, dert__ = P.values()
         xn = x0 + L  # next-P x0
-        mask = np.ones((dert__.shape[1], dert__.shape[2]))
+        mask = np.ones((xn - x0), dtype=bool)
 
         if not up_fork_:
             # initialize new stack for each input-row P that has no connections in higher row:
-            blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, S=0, Ly=0), box=[y, x0, xn], stack_=[], sign=s, open_stacks=1)
-            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s)
+            blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, S=0, Ly=0), box=[y, x0, xn], stack_=[], sign=s, open_stacks=1, mask=mask)
+            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0, sign=s, mask=mask)
             blob['stack_'].append(new_stack)
         else:
             if len(up_fork_) == 1 and up_fork_[0]['down_fork_cnt'] == 1:
@@ -214,7 +214,7 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
             else:  # if > 1 up_forks, or 1 up_fork that has > 1 down_fork_cnt:
                 blob = up_fork_[0]['blob']
                 # initialize new_stack with up_fork blob:
-                mask[y, x0:xn] = 0
+                mask[x0: xn] = 0
                 new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0,
                                  sign=s, mask=mask)
                 blob['stack_'].append(new_stack)  # stack is buffered into blob
@@ -235,6 +235,7 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
                             blob['box'][0] = min(blob['box'][0], box[0])  # extend box y0
                             blob['box'][1] = min(blob['box'][1], box[1])  # extend box x0
                             blob['box'][2] = max(blob['box'][2], box[2])  # extend box xn
+                            blob['mask'] = mask[x0: xn]
                             for stack in stack_:
                                 if not stack is up_fork:
                                     stack[
@@ -253,8 +254,8 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
 
 def form_blob(stack, frame):  # increment blob with terminated stack, check for blob termination and merger into frame
 
-    I, G, Dy, Dx, S, Ly, y0, Py_, blob, down_fork_cnt, sign = stack.values()
-    accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly)
+    I, G, Dy, Dx, S, Ly, y0, Py_, blob, down_fork_cnt, sign, mask = stack.values()
+    accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly, mask=mask)
     # terminated stack is merged into continued or initialized blob (all connected stacks):
 
     blob['open_stacks'] += down_fork_cnt - 1  # incomplete stack cnt + terminated stack down_fork_cnt - 1: stack itself
