@@ -206,7 +206,7 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
             if len(up_fork_) == 1 and up_fork_[0]['down_fork_cnt'] == 1:
                 # P has one up_fork and that up_fork has one root: merge P into up_fork stack:
                 new_stack = up_fork_[0]
-                accum_Dert(new_stack, I=I, G=G, Dy=Dy, Dx=Dx, S=L, Ly=1)
+                accum_Dert(new_stack, I=I, G=G, Dy=Dy, Dx=Dx, S=L, Ly=1, mask=mask)
                 new_stack['Py_'].append(P)  # Py_: vertical buffer of Ps
                 new_stack['down_fork_cnt'] = 0  # reset down_fork_cnt
                 blob = new_stack['blob']
@@ -214,7 +214,6 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
             else:  # if > 1 up_forks, or 1 up_fork that has > 1 down_fork_cnt:
                 blob = up_fork_[0]['blob']
                 # initialize new_stack with up_fork blob:
-                mask[x0: xn] = 0
                 new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, S=L, Ly=1, y0=y, Py_=[P], blob=blob, down_fork_cnt=0,
                                  sign=s, mask=mask)
                 blob['stack_'].append(new_stack)  # stack is buffered into blob
@@ -229,8 +228,8 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
 
                         if not up_fork['blob'] is blob:
                             Dert, box, stack_, s, open_stacks = up_fork['blob'].values()  # merged blob
-                            I, G, Dy, Dx, S, Ly = Dert.values()
-                            accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly)
+                            I, G, Dy, Dx, S, Ly, mask = Dert.values()
+                            accum_Dert(blob['Dert'], I=I, G=G, Dy=Dy, Dx=Dx, S=S, Ly=Ly, mask=mask)
                             blob['open_stacks'] += open_stacks
                             blob['box'][0] = min(blob['box'][0], box[0])  # extend box y0
                             blob['box'][1] = min(blob['box'][1], box[1])  # extend box x0
@@ -265,7 +264,7 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
         # blob is terminated and packed in frame:
         last_stack = stack
 
-        Dert, [y0, x0, xn], stack_, s, open_stacks = blob.values()
+        Dert, [y0, x0, xn], stack_, s, open_stacks, mask = blob.values()
         yn = last_stack['y0'] + last_stack['Ly']
 
         mask = np.ones((yn - y0, xn - x0), dtype=bool)  # map of blob in coord box
@@ -277,7 +276,7 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
                 x_stop = x_start + P['L']
                 mask[y, x_start:x_stop] = False
         dert__ = frame['dert__'][:, y0:yn, x0:xn]
-        dert__.mask[:] = mask  # default mask is all 0s
+        dert__.mask[:] = mask and Dert('mask')  # probably wrong, how does numpy and work?
 
         blob.pop('open_stacks')
         blob.update(box= (y0, yn, x0, xn),  # boundary box

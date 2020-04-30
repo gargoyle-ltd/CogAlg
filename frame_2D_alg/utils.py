@@ -87,6 +87,7 @@ def array2image(a):
 
 def imread(filename, raise_if_not_read=True):
     "Read an image in grayscale, return array."
+    print(filename)
     try:
         return cv2.imread(filename, 0).astype(int)
     except AttributeError:
