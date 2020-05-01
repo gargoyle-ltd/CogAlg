@@ -22,12 +22,9 @@ def draw_blobs(frame, dert__select):
             dert__ = blob['dert__'][dert__select].data
             # get the index of mask
             mask_index = np.where(blob['dert__'][0].mask == True)
-            # get the index of blob
-            blob_index = np.where(blob['dert__'][0].mask == False)
             # set masked area as 0
             dert__[mask_index] = 0
-            # # set blob area as 1
-            # dert__[blob_index] = 1
+
 
 
             # draw blobs into image
