@@ -47,11 +47,11 @@ gblobs, box_list2 = draw_blobs(frame, dert__select=1)
 
 
 # save to disk
-cv2.imwrite("images/iblobs_draft5.png", iblobs)
-cv2.imwrite("images/gblobs_draft5.png", gblobs)
+cv2.imwrite("images/iblobs_draft7.png", iblobs)
+cv2.imwrite("images/gblobs_draft7.png", gblobs)
 
-img1 = cv2.imread("images/iblobs_draft5.png")
-img2 = cv2.imread("images/gblobs_draft5.png")
+img1 = cv2.imread("images/iblobs_draft7.png")
+img2 = cv2.imread("images/gblobs_draft7.png")
 
 for i in range(len(box_list1)):
     img1 = cv2.rectangle(img1, (box_list1[i][0], box_list1[i][2]), (box_list1[i][1], box_list1[i][3]), color=(0, 0, 350),
@@ -59,5 +59,5 @@ for i in range(len(box_list1)):
     img2 = cv2.rectangle(img2, (box_list2[i][0], box_list2[i][2]), (box_list2[i][1], box_list2[i][3]), color=(0, 0, 350),
                   thickness=1)
 
-cv2.imwrite("images/iblobs_draft6.png", img1)
-cv2.imwrite("images/gblobs_draft6.png", img2)
+cv2.imwrite("images/iblobs_draft8.png", img1)
+cv2.imwrite("images/gblobs_draft8.png", img2)

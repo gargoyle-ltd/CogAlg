@@ -254,7 +254,7 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
                 x_start = P['x0'] - x0
                 x_stop = x_start + P['L']
                 mask[y, x_start:x_stop] = False
-        dert__ = frame['dert__'][:, y0:yn, x0:xn]
+        dert__ = frame['dert__'][:, y0:yn, x0:xn].copy()
         dert__.mask[:] = mask  # default mask is all 0s
 
         blob.pop('open_stacks')
