@@ -208,10 +208,25 @@ def form_blob(stack, frame):
         blob.update(root=frame,
                     box=(y0, yn, x0, xn),  # boundary box
                     dert__=dert__,  # includes mask, no need for map
-                    fork=defaultdict(dict)  # will contain fork params, layer_
+                    fork=defaultdict(dict),  # will contain fork params, layer_
+                    blobs_in=0
                     )
+        for i, blob2 in enumerate(frame['blob__']):
+            if blob['sign'] == blob2['sign']:
+                if blob['box'][0] <= blob2['box'][0] and \
+                        blob['box'][1] >= blob2['box'][1] and \
+                        blob['box'][2] <= blob2['box'][2] and \
+                        blob['box'][3] >= blob2['box'][3]:
+                    blob['blobs_in'] += 1
+
+                elif blob2['box'][0] <= blob['box'][0] and \
+                        blob2['box'][1] >= blob['box'][1] and \
+                        blob2['box'][2] <= blob['box'][2] and \
+                        blob2['box'][3] >= blob['box'][3]:
+                    blob2['blobs_in'] += 1
 
         frame['blob__'].append(blob)
+
 
 
 def image_to_blobs(image):
@@ -231,19 +246,11 @@ def image_to_blobs(image):
     while stack_:
         form_blob(stack_.popleft(), frame)
 
-    # counting blobs the same sign in another
-    for i, blob1 in enumerate(frame['blob__']):
-        blob1['blobs_in'] = 0
-        for j, blob2 in enumerate(frame['blob__']):
-            if i != j and blob1['sign'] == blob2['sign']:
-                if blob1['box'][0] <= blob2['box'][0] and \
-                        blob1['box'][1] >= blob2['box'][1] and \
-                        blob1['box'][2] <= blob2['box'][2] and \
-                        blob1['box'][3] >= blob2['box'][3]:
-                    blob1['blobs_in'] += 1
-
     return frame
 
 
 frame = image_to_blobs(image)
+
+for i in frame['blob__']:
+    print(i['box'], i['blobs_in'])
 
