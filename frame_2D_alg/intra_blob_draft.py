@@ -55,13 +55,13 @@ def intra_blob(blob, rdn, rng, fig, fcr):  # recursive input rng+ | der+ cross-c
     cluster_derts(blob, dert__, ave * rdn, fcr, fig)
     # feedback: root['layer_'] += [[(lL, fig, fcr, rdn, rng, blob['sub_blob_'])]]  # 1st layer
 
-    for sub_blob in blob['blob_']:  # eval intra_blob comp_a | comp_rng if low gradient
+    '''for sub_blob in blob['blob_']:  # eval intra_blob comp_a | comp_rng if low gradient
         if sub_blob['sign']:
             if sub_blob['Dert']['M'] > aveB * rdn:  # -> comp_r:
                 intra_blob(sub_blob, rdn + 1, rng ** 2, fig=fig, fcr=1)  # rng=1 in first call
 
         elif sub_blob['Dert']['G'] > aveB * rdn:
-            intra_blob(sub_blob, rdn + 1, rng=rng, fig=1, fcr=0)  # -> comp_g
+            intra_blob(sub_blob, rdn + 1, rng=rng, fig=1, fcr=0)  # -> comp_g'''
     '''
     feedback:
     for sub_blob in blob['blob_']:
@@ -83,10 +83,10 @@ def cluster_derts(blob, dert__, Ave, fcr, fig):  # analog of frame_to_blobs
     else:  # comp_g output
         crit__ = dert__[4] - Ave  # comp_g output eval by m, or clustering is always by m?
 
+
     for y in range(height):  # last row is discarded
         print(f'Processing line {y}...')
-
-        P_ = form_P_(dert__[:, y].T, crit__[:, y], fig)  # horizontal clustering
+        P_ = form_P_(dert__[:, y].T, crit__[y], fig)  # horizontal clustering
         P_ = scan_P_(P_, stack_, blob['root'])  # vertical clustering, adds up_forks per P and down_fork_cnt per stack
         stack_ = form_stack_(P_, blob['root'], fig, y)
 
@@ -107,18 +107,22 @@ def form_P_(dert_, crit_, fig):  # segment dert__ into P__, in horizontal ) vert
     sign_ = crit_ > 0
     x0 = -1
     for x in range(len(dert_)):
-        if ~mask_[x]:
+        if ~mask_[x][0].any():
             x0 = x  # coordinate of first unmasked dert in line
             break
     # initialize P params:
     I, G, Dy, Dx, M, iDy, iDx, L = *dert_[x0], 1  # iDy, iDx maybe None
     _sign = sign_[x0]
-    _mask = False
+    # after 1st iteration _mask becomes an array so we need to add .any() in loop, False is actually a bool zero
+    _mask = np.zeros(dert_.shape[1], dtype=bool)
 
-    for x in range(x0 + 1, dert_.shape[2]):  # loop left to right in each row of derts
+    # with transposed dert, the row is actually shape[0]
+    for x in range(x0 + 1, dert_.shape[0]):  # loop left to right in each row of derts
         sign = sign_[x]
         mask = mask_[x]
-        if (~_mask and mask) or sign_ != _sign:
+
+        # when mask is a numpy array it needs .any()
+        if (~_mask.any() and mask.any()) or sign != _sign:
             # (P exists and input is not in blob) or sign changed, terminate and pack P:
             P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, iDy=iDy, iDx=iDx, L=L, x0=x0, sign=_sign, mask=new_mask)
             new_mask[x0: x0 + L] = 0  # for terminated blob dert__.mask = new_mask
@@ -127,7 +131,7 @@ def form_P_(dert_, crit_, fig):  # segment dert__ into P__, in horizontal ) vert
             I, G, Dy, Dx, M, L, x0 = 0, 0, 0, 0, 0, 0, x
             if fig: iDy, iDx = 0, 0
 
-        if ~mask:  # accumulate P params:
+        if ~mask.any():  # accumulate P params:
             I += dert_[x][0]
             G += dert_[x][1]
             Dy += dert_[x][2]
@@ -148,7 +152,29 @@ def form_P_(dert_, crit_, fig):  # segment dert__ into P__, in horizontal ) vert
     return P_
 
 
-def scan_P_(P__, stack_, frame):
+def scan_P_(P__, stack, blob_root):
+
+    for P_, P_next in pairwise(P__):
+        x0 =  P_['x0']
+        xn = x0 + P_['L']
+        x0_next = P_next['x0']
+        xn_next = x0_next + P_next['L']
+
+        mask1 = P_['mask']
+        mask2 = P_next['mask']
+        while True:
+            if (~mask1 and ~mask2) and P_['sign'] == P_next['sign']: # check for sign
+                if x0_next < xn and xn < xn_next:
+                    P_['down_fork_'].append(P_next)
+                    P_next['up_fork_'].append(P_)
+
+            else:
+                break
+
+    return P__
+
+
+def scan_P_old(P__, stack_, frame):
     """Detect up_forks and down_forks per P."""
 
     for _P_, P_ in pairwise(P__):  # Iterate through pairs of lines.
@@ -191,7 +217,7 @@ def form_stack_(P_, fig):
     P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
                               or len(P['up_fork_'][0]['down_fork_']) != 1),
                    P_)]
-    if fig:
+    if fig: # fcr
         param_keys = gS_PARAM_KEYS
     else:
         param_keys = S_PARAM_KEYS

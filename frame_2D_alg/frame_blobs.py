@@ -290,10 +290,10 @@ if __name__ == '__main__':
     start_time = time()
     frame = image_to_blobs(image)
 
-    intra = 0
+    intra = 1
     if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
 
-        from intra_blob_draft import *
+        from CogAlg.frame_2D_alg.intra_blob_draft import *
 
         deep_frame = frame, frame
         # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
@@ -304,8 +304,8 @@ if __name__ == '__main__':
                 if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
                     intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
 
-            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
-                intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
+            #elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
+            #    intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
                 '''
                 with feedback:
                 dert__ = comp_a|r(blob['dert__'], rng=1)  
