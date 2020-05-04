@@ -251,6 +251,4 @@ def image_to_blobs(image):
 
 frame = image_to_blobs(image)
 
-for i in frame['blob__']:
-    print(i['box'], i['blobs_in'])
 

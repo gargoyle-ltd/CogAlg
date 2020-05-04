@@ -136,8 +136,9 @@ def comp_r(dert__, fig, root_fcr):
                 + np.minimum(i__center, (i__left * cos_da[7]))
                 )
         '''
-        8-tuple of cosine differences per direction:
+        8-tuple of cosine differences per direction: 
         '''
+
         dt__ = np.stack(((i__center - i__topleft * cos_da[0]),
                          (i__center - i__top * cos_da[1]),
                          (i__center - i__topright * cos_da[2]),
@@ -182,13 +183,13 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
     g3__, dy3__, dx3__ = g__[1:, :-1], dy__[1:, :-1], dx__[1:, :-1]  # bottom left
 
     sin0__ = dy0__ / g0__;
-    cos0__ = dx0__ / g0__
+    cos0__ = dx0__ / g0__;
     sin1__ = dy1__ / g1__;
-    cos1__ = dx1__ / g1__
+    cos1__ = dx1__ / g1__;
     sin2__ = dy2__ / g2__;
-    cos2__ = dx2__ / g2__
+    cos2__ = dx2__ / g2__;
     sin3__ = dy3__ / g3__;
-    cos3__ = dx3__ / g3__
+    cos3__ = dx3__ / g3__;
     '''
     cosine of difference between diagonally opposed angles, in vector representation:
     '''
@@ -197,7 +198,7 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
 
     print(cos_da1__.shape, type(cos_da1__))
 
-    dgy__ = ((g3__ + g2__) - (g0__ * cos_da0__ + g1__ * cos_da1__))
+    dgy__ = ((g3__ + g2__) - (g0__ * cos_da0__ + g1__* cos_da1__))
     # y-decomposed cosine difference between gs
 
     dgx__ = ((g1__ + g2__) - (g0__ * cos_da0__ + g3__ * cos_da1__))
