@@ -157,15 +157,9 @@ def comp_r(dert__, fig, root_fcr):
             '''
         g__ = np.hypot(dy__, dx__)
 
-    if fig:
-        rdert = ma.stack((i__center, g__, dy__, dx__, m__, idy__[1:-1:2, 1:-1:2], idx__[1:-1:2, 1:-1:2]))
-    else:
-        rdert = ma.stack((i__center, g__, dy__, dx__, m__))  # return input with accumulated derivatives
-    '''
-    next comp_r will use full dert       
-    next comp_g will use g__, dy__, dx__
-    '''
-    return rdert
+
+    return  ma.stack((i__center, g__, dy__, dx__, m__, idy__[1:-1:2, 1:-1:2], idx__[1:-1:2, 1:-1:2]))
+
 
 
 def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
