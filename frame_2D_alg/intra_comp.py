@@ -124,11 +124,7 @@ def comp_r(dert__, fig, root_fcr):
             ((a__center[0] * a__center[1]) + (a__bottomleft[0] * a__bottomleft[1])),
             ((a__center[0] * a__center[1]) + (a__left[0] * a__left[1]))
         ))
-        '''if root_fcr:
-            m__, day__, dax__ = dert__[[-4, -2, -1]]  # skip ga: recomputed, output for summation only?
-            m__ = m__[1:-1:2, 1:-1:2]  # sparse to align with i__center
-        else:
-            m__ = np.zeros((i__center.shape[0], i__center.shape[1]))  # row, column'''
+
 
         m__ += (np.minimum(i__center, (i__topleft * cos_da[0]))
                 + np.minimum(i__center, (i__top * cos_da[1]))
@@ -162,6 +158,8 @@ def comp_r(dert__, fig, root_fcr):
         g__ = np.hypot(dy__, dx__)
 
 
+
+
     return ma.stack((i__center, g__, dy__, dx__, m__, idy__, idx__))
 
 
@@ -177,14 +175,14 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
     g2__, dy2__, dx2__ = g__[1:, 1:], dy__[1:, 1:], dx__[1:, 1:]  # bottom right
     g3__, dy3__, dx3__ = g__[1:, :-1], dy__[1:, :-1], dx__[1:, :-1]  # bottom left
 
-    sin0__ = dy0__ / g0__;
-    cos0__ = dx0__ / g0__;
-    sin1__ = dy1__ / g1__;
-    cos1__ = dx1__ / g1__;
-    sin2__ = dy2__ / g2__;
-    cos2__ = dx2__ / g2__;
-    sin3__ = dy3__ / g3__;
-    cos3__ = dx3__ / g3__;
+    sin0__ = dy0__ / g0__
+    cos0__ = dx0__ / g0__
+    sin1__ = dy1__ / g1__
+    cos1__ = dx1__ / g1__
+    sin2__ = dy2__ / g2__
+    cos2__ = dx2__ / g2__
+    sin3__ = dy3__ / g3__
+    cos3__ = dx3__ / g3__
     '''
     cosine of difference between diagonally opposed angles, in vector representation:
     '''
@@ -213,10 +211,7 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
                       dy__[:-1, :-1],
                       dx__[:-1, :-1]  # to compute cos for comp rg
                       ))
-    '''
-    next comp_rg will use g, dy, dx     
-    next comp_gg will use gg, dgy, dgx  
-    '''
+
     return gdert
 
 

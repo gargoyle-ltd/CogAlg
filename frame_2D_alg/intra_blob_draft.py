@@ -218,12 +218,6 @@ def scan_P_(P__, stack, blob_root):
 
 def form_stack_(P_, blob_root, fig, y):
 
-    if fig:
-        param_keys = gS_PARAM_KEYS  # "I", "G", "Dy", "Dx", "M", "iDy", "iDx",
-        # "A", "Ly", "y0", "x0", "xn", "Py_", "down_fork_", "up_fork_", "sign"
-    else:
-        param_keys = gP_PARAM_KEYS # "I", "G", "Dy", "Dx", "M", "iDy", "iDx",
-        # "L", "x0", "dert_", "down_fork_", "up_fork_", "y", "sign"
 
     next_stack_ = deque()  # converted to stack_ in the next run of scan_P_
 
