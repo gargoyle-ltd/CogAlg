@@ -83,10 +83,11 @@ def form_P_(dert__):  # horizontal clustering and summation of dert params into 
     # P is a segment of same-sign derts in horizontal slice of a blob
 
     P_ = deque()  # row of Ps
-    I, G, Dy, Dx, L, x0 = *dert__[0], 1, 0  # initialize P params with 1st dert params
+    # topleft__, idy__, idx__, g__, dy__, dx__, m__
+    I, G, Dy, Dx, L, x0 = *dert__[0][[0, 3, 4, 5]], 1, 0  # initialize P params with 1st dert params
     G = int(G) - ave
     _s = G > 0  # sign
-    for x, (p, g, dy, dx) in enumerate(dert__[1:], start=1):
+    for x, (p, idx, idy, g, dy, dx) in enumerate(dert__[1:, :6], start=1):
         vg = int(g) - ave  # deviation of g
         s = vg > 0
         if s != _s:
@@ -283,7 +284,7 @@ if __name__ == '__main__':
     import argparse
 
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument('-i', '--image', help='path to image file', default='./images//raccoon.jpg')
+    argument_parser.add_argument('-i', '--image', help='path to image file', default='./images//raccoon_eye.jpg')
     arguments = vars(argument_parser.parse_args())
     image = imread(arguments['image'])
 
@@ -297,9 +298,9 @@ if __name__ == '__main__':
 
         deep_frame = frame, frame
         # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
-
+        counter = 0
         for blob in frame['blob__']:
-
+            counter += 1
             if blob['sign']:
                 if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
                     intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g

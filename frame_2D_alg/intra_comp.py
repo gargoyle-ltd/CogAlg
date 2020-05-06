@@ -50,7 +50,7 @@ def comp_r(dert__, fig, root_fcr):
     i__left = i__[1:-1:2, :-2:2]
 
 
-    idy__, idx__ = dert__[[4, 5]]  # skip g: recomputed, output for Dert only
+    idy__, idx__ = dert__[[2, 3]]  # skip g: recomputed, output for Dert only
     a__ = [idy__, idx__] / i__  # sin, cos;  i = ig
 
     idy__ = idy__[1:-1:2, 1:-1:2]
@@ -58,7 +58,7 @@ def comp_r(dert__, fig, root_fcr):
 
     if root_fcr:  # root fork is comp_r, all params are present in the input:
 
-        dy__, dx__, m__ = dert__[[2, 3, 4]]  # skip g: recomputed, output for Dert only
+        dy__, dx__, m__ = dert__[[4, 5, 6]]  # skip g: recomputed, output for Dert only
         dy__ = dy__[1:-1:2, 1:-1:2]  # sparse to align with i__center
         dx__ = dx__[1:-1:2, 1:-1:2]
         m__ = m__[1:-1:2, 1:-1:2]
@@ -80,7 +80,6 @@ def comp_r(dert__, fig, root_fcr):
             dy__ += d__ * YCOEF  # decompose differences into dy and dx,
             dx__ += d__ * XCOEF  # accumulate with prior-rng dy, dx
 
-        #g__ = np.hypot(dy__, dx__)  # gradient
         '''
         inverse match = SAD, more precise measure of variation than g, direction doesn't matter:
         (all diagonal derivatives can be imported from prior 2x2 comp)
@@ -160,7 +159,7 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
 
     dert__ = shape_check(dert__)  # remove derts of incomplete kernels
 
-    g__, dy__, dx__ = dert__[[1, 2, 3]]  # top dimension of numpy stack must be a list
+    g__, dy__, dx__ = dert__[[4, 5, 6]]  # top dimension of numpy stack must be a list
 
     g0__, dy0__, dx0__ = g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1]  # top left
     g1__, dy1__, dx1__ = g__[:-1, 1:], dy__[:-1, 1:], dx__[:-1, 1:]  # top right
