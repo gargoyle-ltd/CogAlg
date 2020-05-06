@@ -3,7 +3,7 @@ For testing intra_comp operations and 3 layers of intra_comp's forks
 Visualize each comp's output with image output
 """
 
-from CogAlg.frame_2D_alg.comp_pixel import comp_pixel_m
+from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
 from CogAlg.frame_2D_alg.intra_comp import *
 from CogAlg.frame_2D_alg.utils import imread, imwrite
 import cv2
@@ -13,7 +13,7 @@ import numpy as np
 # Input:
 IMAGE_PATH = "./images/raccoon.jpg"
 # Outputs:
-OUTPUT_PATH = "./images/intra_comp/"
+OUTPUT_PATH = "./images/intra_comp_1/"
 
 # -----------------------------------------------------------------------------
 # Functions
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     print('Reading image...')
     image = imread(IMAGE_PATH)
 
-    dert_ = comp_pixel_m(image)
+    dert_ = comp_pixel(image)
 
     print('Processing first layer comps...')
     # comp_p ->

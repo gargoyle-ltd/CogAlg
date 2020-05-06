@@ -49,7 +49,10 @@ def comp_r(dert__, fig, root_fcr):
     i__bottomleft = i__[2::2, :-2:2]
     i__left = i__[1:-1:2, :-2:2]
 
-    idy__, idx__ = dert__[[5, 6]]  # skip g: recomputed, output for Dert only
+
+    idy__, idx__ = dert__[[4, 5]]  # skip g: recomputed, output for Dert only
+    a__ = [idy__, idx__] / i__  # sin, cos;  i = ig
+
     idy__ = idy__[1:-1:2, 1:-1:2]
     idx__ = idx__[1:-1:2, 1:-1:2]
 
@@ -77,7 +80,7 @@ def comp_r(dert__, fig, root_fcr):
             dy__ += d__ * YCOEF  # decompose differences into dy and dx,
             dx__ += d__ * XCOEF  # accumulate with prior-rng dy, dx
 
-        g__ = np.hypot(dy__, dx__)  # gradient
+        #g__ = np.hypot(dy__, dx__)  # gradient
         '''
         inverse match = SAD, more precise measure of variation than g, direction doesn't matter:
         (all diagonal derivatives can be imported from prior 2x2 comp)
@@ -91,14 +94,6 @@ def comp_r(dert__, fig, root_fcr):
                 + abs(i__center - i__bottomleft)
                 + abs(i__center - i__left)
                 )
-        '''else:  # fig is TRUE, compare angle and then magnitude of 8 center-rim pairs
-        if not root_fcr:
-            idy__, idx__ = dert__[[-2, -1]]  # root fork is comp_g, not sparse
-
-            dy__ = np.zeros((i__center.shape[0], i__center.shape[1]))  # row, column
-            dx__ = np.zeros((i__center.shape[0], i__center.shape[1]))'''
-
-        a__ = [idy__, idx__] / i__  # sin, cos;  i = ig
         '''
         sparse aligned a__center and a__rim arrays:
         '''
@@ -155,10 +150,7 @@ def comp_r(dert__, fig, root_fcr):
             '''
             accumulate in prior-rng (3x3 -> 5x5 -> 9x9) dy, dx
             '''
-        g__ = np.hypot(dy__, dx__)
-
-
-
+    g__ = np.hypot(dy__, dx__)
 
     return ma.stack((i__center, g__, dy__, dx__, m__, idy__, idx__))
 
@@ -188,8 +180,6 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
     '''
     cos_da0__ = (sin0__ * cos0__) + (sin2__ * cos2__)  # top left to bottom right
     cos_da1__ = (sin1__ * cos1__) + (sin3__ * cos3__)  # top right to bottom left
-
-    print(cos_da1__.shape, type(cos_da1__))
 
     dgy__ = ((g3__ + g2__) - (g0__ * cos_da0__ + g1__* cos_da1__))
     # y-decomposed cosine difference between gs
