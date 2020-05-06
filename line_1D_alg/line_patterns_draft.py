@@ -1,7 +1,7 @@
 import cv2
 import argparse
 from time import time
-from line_1D_alg.utils import *
+from CogAlg.line_1D_alg.utils import *
 from itertools import zip_longest
 
 ''' 
@@ -140,7 +140,7 @@ def form_dP_(P_dert_):  # pattern initialization, accumulation, termination, par
 
 def intra_mP_(P_, fid, rdn, rng):  # evaluate for sub-recursion in line P_, fil sub_P_ with results
 
-    sub_H_ = []  # intra_P initializes sub_hierarchy with 1st sub_P_ layer, extending root sub_H_ by feedback
+    deep_sub_ = []  # intra_P initializes sub_hierarchy with 1st sub_P_ layer, extending root sub_H_ by feedback
     adj_M_proj = 0  # project adjacent P M on current P span, contrast value
 
     for sign, L, I, D, M, dert_, sub_H_ in P_:  # each sub in sub_H_ is nested to depth = sub_H_[n]
@@ -155,10 +155,16 @@ def intra_mP_(P_, fid, rdn, rng):  # evaluate for sub-recursion in line P_, fil 
 
         elif ~sign and min(adj_M_proj, abs(D)) > ave_D * rdn and L > 3:  # max value of abs_D is PM projected on neg_mP
 
-            sub_dP_ = form_dP_(dert_);
+            # abs because match is not directional, but ?
+            # adj_M/l - M/L -> contrast as 1D difference, from cross-sign comp?
+
+            sub_dP_ = form_dP_(dert_)
             lL = len(sub_dP_)  # cluster by d sign match: partial d match, else no der+
             sub_H_ += [[(lL, True, 1, rdn, rng, sub_dP_)]]  # 1st layer, Dert=[], fill if lL > min?
             sub_H_ += intra_dP_(sub_dP_, adj_M_proj, rdn + 1 + 1 / lL, rng + 1)  # der_comp eval per dP
+
+        deep_sub_ = [deep_sub + sub_H_ for deep_sub, sub_H_ in zip_longest(deep_sub_, sub_H_, fillvalue=[])]
+        # deep_sub_ and deep_dsub_ are spliced into deep_sub_ hierarchy
 
     return sub_H_  # or deep_sub_H_?
 

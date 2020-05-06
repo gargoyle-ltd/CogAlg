@@ -68,6 +68,7 @@ def intra_blob(blob, rdn, rng, fig, fcr):  # recursive input rng+ | der+ cross-c
     cluster_derts(blob, dert__, ave * rdn, fcr, fig)
     # feedback: root['layer_'] += [[(lL, fig, fcr, rdn, rng, blob['sub_blob_'])]]  # 1st layer
 
+
     '''for sub_blob in blob['blob_']:  # eval intra_blob comp_a | comp_rng if low gradient
         if sub_blob['sign']:
             if sub_blob['Dert']['M'] > aveB * rdn:  # -> comp_r:
@@ -118,7 +119,7 @@ def form_P_(dert_, crit_):  # segment dert__ into P__, in horizontal ) vertical 
 
     P_ = deque()  # row of Ps
     new_mask = np.ones(dert_.shape[1])
-    mask_ = dert_.mask
+    mask_ = dert_[:,0].mask
     sign_ = crit_ > 0
     x0 = -1
     for x in range(len(dert_)):
@@ -235,22 +236,22 @@ def form_stack_(P_, blob_root, fig, y):
             # initialize new stack for each input-row P that has no connections in higher row:
             sub_blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, M=0, iDy=0, iDx=0, S=0, Ly=0), box=[y, x0, xn], stack_=[],
                         sign=s, open_stacks=1)
-            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1, y0=y, Py_=[P], blob=blob,
+            new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1, y0=y, Py_=[P], sub_blob=sub_blob,
                              down_fork_cnt=0, sign=s)
-            blob['stack_'].append(new_stack)
+            sub_blob['stack_'].append(new_stack)
         else:
             if len(up_fork_) == 1 and up_fork_[0]['down_fork_cnt'] == 1:
                 new_stack = up_fork_[0]
                 new_stack.update(I=I, G=G, Dy=Dy, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1)
                 new_stack['Py_'].append(P)
                 new_stack['down_fork_cnt'] = 0
-                blob = new_stack['blob']
+                sub_blob = new_stack['sub_blob']
 
             else:
-                blob = up_fork_[0]['blob']
-                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1, y0=y, Py_=[P], blob=blob,
+                sub_blob = up_fork_[0]['sub_blob']
+                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1, y0=y, Py_=[P], sub_blob=sub_blob,
                                  down_fork_cnt=0, sign=s)
-                blob['stack_'].append(new_stack)
+                sub_blob['stack_'].append(new_stack)
 
                 if len(up_fork_) > 1:
                     if up_fork_[0]['down_fork_cnt'] == 1:
@@ -262,25 +263,25 @@ def form_stack_(P_, blob_root, fig, y):
                             form_blob(up_fork, blob_root)
                             pass
 
-                        if not up_fork['blob'] is blob:
-                            Dert, box, stack_, s, open_stacks = up_fork['blob'].values()
+                        if not up_fork['blob'] is sub_blob:
+                            Dert, box, stack_, s, open_stacks = up_fork['sub_blob'].values()
                             I, G, Dy, Dx, M, iDy, iDx, S, Ly = Dert.values()
-                            blob['Dert'].update(I=I, G=G, Dy=Dy, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=S, Ly=Ly)
-                            blob['open_stacks'] += open_stacks
-                            blob['box'][0] = min(blob['box'][0], box[0])
-                            blob['box'][1] = min(blob['box'][1], box[1])
-                            blob['box'][2] = max(blob['box'][2], box[2])
+                            sub_blob['Dert'].update(I=I, G=G, Dy=Dy, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=S, Ly=Ly)
+                            sub_blob['open_stacks'] += open_stacks
+                            sub_blob['box'][0] = min(sub_blob['box'][0], box[0])
+                            sub_blob['box'][1] = min(sub_blob['box'][1], box[1])
+                            sub_blob['box'][2] = max(sub_blob['box'][2], box[2])
                             for stack in stack_:
                                 if not stack is up_fork:
                                     stack[
-                                        'blob'] = blob
-                                    blob['stack_'].append(stack)
-                            up_fork['blob'] = blob
-                            blob['stack_'].append(up_fork)
-                        blob['open_stacks'] -= 1
+                                        'blob'] = sub_blob
+                                    sub_blob['stack_'].append(stack)
+                            up_fork['sub_blob'] = sub_blob
+                            sub_blob['stack_'].append(up_fork)
+                        sub_blob['open_stacks'] -= 1
 
-        blob['box'][1] = min(blob['box'][1], x0)
-        blob['box'][2] = max(blob['box'][2], xn)
+        sub_blob['box'][1] = min(sub_blob['box'][1], x0)
+        sub_blob['box'][2] = max(sub_blob['box'][2], xn)
         next_stack_.append(new_stack)
 
     return next_stack_
