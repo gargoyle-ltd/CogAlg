@@ -50,7 +50,8 @@ def comp_r(dert__, fig, root_fcr):
     i__left = i__[1:-1:2, :-2:2]
 
 
-    idy__, idx__ = dert__[[2, 3]]  # skip g: recomputed, output for Dert only
+    idy__, idx__ = dert__[[1, 2]]  # skip g: recomputed, output for Dert only
+
     a__ = [idy__, idx__] / i__  # sin, cos;  i = ig
 
     idy__ = idy__[1:-1:2, 1:-1:2]
@@ -151,15 +152,22 @@ def comp_r(dert__, fig, root_fcr):
             '''
     g__ = np.hypot(dy__, dx__)
 
-    return ma.stack((i__center, g__, dy__, dx__, m__, idy__, idx__))
-
+    return ma.stack((i__center,
+                     idy__[1:-1:2, 1:-1:2],  # i__center.shape
+                     idx__[1:-1:2, 1:-1:2],  # i__center.shape
+                     g__,
+                     dy__,
+                     dx__,
+                     m__
+                     ))
 
 
 def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
 
     dert__ = shape_check(dert__)  # remove derts of incomplete kernels
+    print('comp_g')
 
-    g__, dy__, dx__ = dert__[[4, 5, 6]]  # top dimension of numpy stack must be a list
+    g__, dy__, dx__ = dert__[[3, 4, 5]]  # top dimension of numpy stack must be a list
 
     g0__, dy0__, dx0__ = g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1]  # top left
     g1__, dy1__, dx1__ = g__[:-1, 1:], dy__[:-1, 1:], dx__[:-1, 1:]  # top right
@@ -191,6 +199,11 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
     mg0__ = np.minimum(g0__, g2__) * cos_da0__  # g match = min(g, _g) *cos(da)
     mg1__ = np.minimum(g1__, g3__) * cos_da1__
     mg__ = mg0__ + mg1__
+
+    for i in range(len(g__[:-1, :-1])):
+        #print(gg__[i], '\n\n')
+        #print(g__[i], '\n\n', gg__[i], '\n\n', mg__[i], '\n\n', dx__[:-1, :-1][i], '\n\n', dy__[:-1, :-1][i], '\n\n')
+        print('--------------------------------')
 
     gdert = ma.stack((g__[:-1, :-1],  # remove last row and column to align with derived params
                       gg__,
