@@ -80,6 +80,8 @@ def comp_r(dert__, fig, root_fcr):
         for d__, YCOEF, XCOEF in zip(dt__, YCOEFs[:4], XCOEFs[:4]):
             dy__ += d__ * YCOEF  # decompose differences into dy and dx,
             dx__ += d__ * XCOEF  # accumulate with prior-rng dy, dx
+            
+        g__ = np.hypot(dy__, dx__)
 
         '''
         inverse match = SAD, more precise measure of variation than g, direction doesn't matter:
@@ -150,8 +152,6 @@ def comp_r(dert__, fig, root_fcr):
             '''
             accumulate in prior-rng (3x3 -> 5x5 -> 9x9) dy, dx
             '''
-    g__ = np.hypot(dy__, dx__)
-
     return ma.stack((i__center,
                      idy__[1:-1:2, 1:-1:2],  # i__center.shape
                      idx__[1:-1:2, 1:-1:2],  # i__center.shape
@@ -200,11 +200,6 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
     mg1__ = np.minimum(g1__, g3__) * cos_da1__
     mg__ = mg0__ + mg1__
 
-    for i in range(len(g__[:-1, :-1])):
-        #print(gg__[i], '\n\n')
-        #print(g__[i], '\n\n', gg__[i], '\n\n', mg__[i], '\n\n', dx__[:-1, :-1][i], '\n\n', dy__[:-1, :-1][i], '\n\n')
-        print('--------------------------------')
-
     gdert = ma.stack((g__[:-1, :-1],  # remove last row and column to align with derived params
                       gg__,
                       dgy__,
@@ -213,6 +208,13 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
                       dy__[:-1, :-1],
                       dx__[:-1, :-1]  # to compute cos for comp rg
                       ))
+
+    #gdert.mask[1:] = gdert.mask[0]  # copy i mask to all other params
+
+    for i in range(len(g__[:-1, :-1])):
+        #print(gg__[i], '\n\n')
+        print(g__[:-1, :-1].mask[i], '\n\n', gg__.mask[i], '\n\n', mg__.mask[i], '\n\n', dx__.mask[:-1, :-1][i], '\n\n', dy__.mask[:-1, :-1][i], '\n\n')
+        print('--------------------------------')
 
     return gdert
 
