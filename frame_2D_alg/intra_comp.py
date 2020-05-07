@@ -204,15 +204,6 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
     mg1__ = np.minimum(g1__, g3__) * cos_da1__
     mg__ = mg0__ + mg1__
 
-    gdert = ma.stack((g__[:-1, :-1],  # remove last row and column to align with derived params
-                      gg__,
-                      dgy__,
-                      dgx__,
-                      mg__,
-                      dy__[:-1, :-1],
-                      dx__[:-1, :-1]  # to compute cos for comp rg
-                      ))
-
     #gdert.mask[1:] = gdert.mask[0]  # copy i mask to all other params
 
     for i in range(len(g__[:-1, :-1])):
@@ -220,7 +211,16 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
         print(g__[:-1, :-1].mask[i], '\n\n', gg__.mask[i], '\n\n', mg__.mask[i], '\n\n', dx__.mask[:-1, :-1][i], '\n\n', dy__.mask[:-1, :-1][i], '\n\n')
         print('--------------------------------')
 
-    return gdert
+    return ma.stack((g__[:-1, :-1],  # remove last row and column to align with derived params
+                     dy__[:-1, :-1],
+                     dx__[:-1, :-1],  # -> idy, idx to compute cos for comp rg
+                     gg__,
+                     dgy__,
+                     dgx__,
+                     mg__))
+
+
+
 
 
 def shape_check(dert__):
