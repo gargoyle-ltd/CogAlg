@@ -307,7 +307,7 @@ if __name__ == '__main__':
                     intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
 
             #elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
-            #    intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
+                #intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
                 '''
                 with feedback:
                 dert__ = comp_a|r(blob['dert__'], rng=1)  

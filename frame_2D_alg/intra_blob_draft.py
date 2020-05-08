@@ -1,11 +1,9 @@
 import operator as op
 from collections import deque, defaultdict
-from itertools import groupby, starmap, zip_longest
-import numpy as np
-import numpy.ma as ma
+from itertools import groupby, starmap
+
 from CogAlg.frame_2D_alg.intra_comp import *
 from CogAlg.frame_2D_alg.utils import pairwise, flatten
-from functools import reduce
 
 '''
     2D version of 1st-level algorithm is a combination of frame_blobs, intra_blob, and comp_P: optional raster-to-vector conversion.
@@ -57,17 +55,65 @@ gS_PARAM_KEYS = gPARAMS + S_PARAMS
 # --------------------------------------------------------------------------------------------------------------
 # functions, ALL WORK-IN-PROGRESS:
 
+def dert_check(dert__, root_func):
+    list_of_vals = []
+    coordinates = []
+
+    for i in range(len(dert__[0])):
+        for j in range(len(dert__[0][i])):
+
+            if dert__[0].mask[i][j] == dert__[1].mask[i][j] == dert__[2].mask[i][j] == dert__[3].mask[i][j] == \
+                    dert__[4].mask[i][j] == dert__[5].mask[i][j] == dert__[6].mask[i][j]:
+                pass
+            else:
+
+                if dert__[0].mask[i][j] != dert__[1].mask[i][j]:
+                    list_of_vals.append(1)
+                    coordinates.append((i , j))
+                if dert__[1].mask[i][j] != dert__[2].mask[i][j]:
+                    list_of_vals.append(2)
+                    coordinates.append((i , j))
+
+                if dert__[2].mask[i][j] != dert__[3].mask[i][j]:
+                    list_of_vals.append(3)
+                    coordinates.append((i , j))
+
+                if dert__[3].mask[i][j] != dert__[4].mask[i][j]:
+                    list_of_vals.append(4)
+                    coordinates.append((i , j))
+
+                if dert__[4].mask[i][j] != dert__[5].mask[i][j]:
+                    list_of_vals.append(5)
+                    coordinates.append((i , j))
+
+                if dert__[5].mask[i][j] != dert__[6].mask[i][j]:
+                    list_of_vals.append(6)
+                    coordinates.append((i , j))
+
+    for index, er in enumerate(list_of_vals):
+        print('\n\n------------------------------------------\n\n')
+        print(coordinates[index],er-1, dert__[er - 1][coordinates[index][0]])
+        print(coordinates[index],er, dert__[er][coordinates[index][0]])
+        print('\n\n------------------------------------------\n\n')
+
+
+
+
+
 def intra_blob(blob, rdn, rng, fig, fcr):  # recursive input rng+ | der+ cross-comp within blob
     # fig: flag input is g, fcr: flag comp over rng+
 
+    # dert_check(blob['dert__'])
     if fcr:
         dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  # -> m sub_blobs
+        func='comp_r'
     else:
-        dert__ = comp_g(blob['dert__'])  # -> g sub_blobs:
+        dert__ = comp_g(blob['dert__'])  # -> g sub_blobs
+        func='comp_g'
+    #dert_check(dert__, func)
 
-    cluster_derts(blob, dert__, ave * rdn, fcr, fig)
+    # cluster_derts(blob, dert__, ave * rdn, fcr, fig)
     # feedback: root['layer_'] += [[(lL, fig, fcr, rdn, rng, blob['sub_blob_'])]]  # 1st layer
-
 
     '''for sub_blob in blob['blob_']:  # eval intra_blob comp_a | comp_rng if low gradient
         if sub_blob['sign']:
@@ -89,27 +135,28 @@ def cluster_derts(blob, dert__, Ave, fcr, fig):  # analog of frame_to_blobs
     height, width = dert__.shape[1:]
     dert__ = ma.transpose(dert__, axes=(1, 2, 0))  # transpose dert__ into shape of [y,x,params)]
 
-
     # compute fork clustering criterion:
     if fcr:  # comp_r output
         if fig:
             crit__ = dert__[:, :, 0] + dert__[:, :, 4] - Ave  # eval by i + m, accumulated in rng
+
         else:
             crit__ = Ave - dert__[:, :, 1]  # eval by -g, accumulated in rng
-    else:  # comp_g output
-        crit__ = dert__[:,:,4] - Ave  # comp_g output eval by m, or clustering is always by m?
 
+    else:  # comp_g output
+        crit__ = dert__[:, :, 4] - Ave  # comp_g output eval by m, or clustering is always by m?
 
     for y in range(height):  # last row is discarded
         print(f'Processing line {y}...')
-        P_ = form_P_(dert__[y,:], crit__[y,:])  # horizontal clustering
-        P_ = scan_P_(P_, stack_, blob['root'])  # vertical clustering, adds P up_forks and down_fork_cnt
-        stack_ = form_stack_(P_, blob['root'], fig, y)
+
+        P_ = form_P_(dert__[y, :], crit__[y, :])  # horizontal clustering
+        P_ = scan_P_(P_, blob['root'])  # vertical clustering, adds P up_forks and down_fork_cnt
+        '''stack_ = form_stack_(P_, blob['root'], fig, y)
 
     while stack_:  # blob root ends, last-line stacks are merged into their blobs:
         sub_blob_ = form_blob(stack_.popleft(), blob['root'])  # with feedback to root_fork at blob['fork_']
 
-    return sub_blob_  # not needed, feedback to root is in form_blob?
+    return sub_blob_  # not needed, feedback to root is in form_blob?'''
 
 
 # clustering functions:
@@ -118,107 +165,78 @@ def cluster_derts(blob, dert__, Ave, fcr, fig):  # analog of frame_to_blobs
 def form_P_(dert_, crit_):  # segment dert__ into P__, in horizontal ) vertical order
 
     P_ = deque()  # row of Ps
-    new_mask = np.ones(dert_.shape[1])
-    mask_ = dert_[:,0].mask
+    mask_ = dert_[:, 0].mask
+
     sign_ = crit_ > 0
     x0 = -1
+
     for x in range(len(dert_)):
-        if ~mask_[x][0]:
+        if ~mask_[x]:
             x0 = x  # coordinate of first unmasked dert in line
+
             break
-    # initialize P params:
-    I, G, Dy, Dx, M, iDy, iDx, L = *dert_[x0], 1  # iDy, iDx maybe None
+
+    I, G, Dy, Dx, M, iDy, iDx, L = *dert_[x0], 1  # initialize P params
     _sign = sign_[x0]
-    # after 1st iteration _mask becomes an array so we need to add .any() in loop, False is actually a bool zero
-    _mask = False  #np.zeros(dert_.shape[1], dtype=bool)
+    _mask = False  # mask bit per dert
 
-    # with transposed dert, the row is actually shape[0]
     for x in range(x0 + 1, dert_.shape[0]):  # loop left to right in each row of derts
+        # print(x)
         sign = sign_[x]
-        mask = mask_[x][0]
+        mask = mask_[x]
 
-        # when mask is a numpy array it needs .any()
-        if (~_mask and mask.any()) or sign != _sign:
+        if (
+                ~_mask and ~mask.all()) or sign != _sign:  # sign_ is an array of signs in yth line, when sign is the current element
+
+
             # (P exists and input is not in blob) or sign changed, terminate and pack P:
-            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, iDy=iDy, iDx=iDx, L=L, x0=x0, sign=_sign, mask=new_mask)
-            # new_mask[x0: x0 + L] = 0  # for terminated blob dert__.mask = new_mask
+            P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, iDy=iDy, iDx=iDx, L=L, x0=x0, sign=_sign)
             P_.append(P)
             # initialize P params:
-            I, G, Dy, Dx, M, L, x0 = 0, 0, 0, 0, 0, 0, x
+            I, G, Dy, Dx, M, iDy, iDx, L, x0 = 0, 0, 0, 0, 0, 0, 0, 0, x
 
-        if ~mask.any():  # accumulate P params:
+        if ~mask:  # accumulate P params:
             I += dert_[x][0]
             G += dert_[x][1]
             Dy += dert_[x][2]
             Dx += dert_[x][3]
             M += dert_[x][4]
             iDy += dert_[x][5]
-            iDx  += dert_[x][6]
+            iDx += dert_[x][6]
             L += 1
             _sign = sign  # prior sign
+            # print(_sign)
         _mask = mask
 
     # terminate and pack last P in a row
-    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, L=L, x0=x0, sign=_sign, mask=new_mask)
-
-    new_mask[x0: x0 + L] = 0
+    P = dict(I=I, G=G, Dy=Dy, Dx=Dx, M=M, iDy=iDy, iDx=iDx, L=L, x0=x0, sign=_sign)
+    # print(P)
     P_.append(P)
 
     return P_
 
 
-def scan_P_(P__, stack, blob_root):
-    next_P_ = deque()
+def scan_P_(P__, blob_root):
+    for P_, P_next in pairwise(P__):
 
-    if P__ and stack:
+        # initialize coordinates of P_ and P__next
+        x0 = P_['x0']
+        xn = x0 + P_['L']
+        x0_next = P_next['x0']
+        xn_next = x0_next + P_next['L']
+        if P_['sign'] == P_next['sign']:
 
-        P = P__.popleft()
-        stack = stack.popleft()
-        _P = stack['Py_'][-1]
-        up_fork_ = []
+            if P_['sign'] == P_next['sign'] and x0_next < xn and xn < xn_next:
+                P_['down_fork_'].append(P_next)
+                P_next['up_fork_'].append(P_)
 
-        while True:
-
-            x0 = P['x0']
-            xn = x0 + P['L']
-            _x0 = _P['x0']
-            _xn = _x0 + _P['L']
-
-            if (P['sign'] == stack['sign'] and _x0 < xn): #x0 is always < _xn if _x0 < xn
-                stack['down_fork_cnt'] += 1
-                up_fork_.append(stack)
-
-            if xn < _xn:
-                next_P_.append((P, up_fork_))
-                up_fork_ = []
-                if P__:
-                    P = P__.popleft()
-                else:
-                    if stack['down_fork_cnt'] != 1:
-                        form_blob(stack, blob_root)
-                    break
             else:
-                if stack['down_fork_cnt'] != 1:
-                    form_blob(stack, blob_root)
+                break
 
-                if stack:
-                    stack = stack.popleft()
-                    _P = stack['Py_'][-1]
-                else:
-                    next_P_.append((P, up_fork_))
-                    break
-
-    while P__:
-        next_P_.append((P__.popleft(), []))
-    while stack:
-        form_blob(stack.popleft(), blob_root)
-
-    return next_P_
+    return P__
 
 
 def form_stack_(P_, blob_root, fig, y):
-
-
     next_stack_ = deque()  # converted to stack_ in the next run of scan_P_
 
     while P_:
@@ -229,7 +247,7 @@ def form_stack_(P_, blob_root, fig, y):
         if not up_fork_:
             # initialize new stack for each input-row P that has no connections in higher row:
             sub_blob = dict(Dert=dict(I=0, G=0, Dy=0, Dx=0, M=0, iDy=0, iDx=0, S=0, Ly=0), box=[y, x0, xn], stack_=[],
-                        sign=s, open_stacks=1)
+                            sign=s, open_stacks=1)
             new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1, y0=y, Py_=[P], sub_blob=sub_blob,
                              down_fork_cnt=0, sign=s)
             sub_blob['stack_'].append(new_stack)
@@ -243,7 +261,8 @@ def form_stack_(P_, blob_root, fig, y):
 
             else:
                 sub_blob = up_fork_[0]['sub_blob']
-                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1, y0=y, Py_=[P], sub_blob=sub_blob,
+                new_stack = dict(I=I, G=G, Dy=0, Dx=Dx, M=M, iDy=iDy, iDx=iDx, S=L, Ly=1, y0=y, Py_=[P],
+                                 sub_blob=sub_blob,
                                  down_fork_cnt=0, sign=s)
                 sub_blob['stack_'].append(new_stack)
 
@@ -303,7 +322,6 @@ def scan_P_old(P__, stack_, frame):
     return [*flatten(P__)]  # Flatten P__ before return.
 
 
-
 def comp_edge(_P, P):  # Used in scan_P_().
     """
     Check for end-point relative position and overlap
@@ -325,7 +343,7 @@ def form_stack_old(P_, fig):
     P0_ = [*filter(lambda P: (len(P['up_fork_']) != 1
                               or len(P['up_fork_'][0]['down_fork_']) != 1),
                    P_)]
-    if fig: # fcr
+    if fig:  # fcr
         param_keys = gS_PARAM_KEYS
     else:
         param_keys = S_PARAM_KEYS
@@ -353,7 +371,6 @@ def form_stack_old(P_, fig):
         del seg['Py_'][0]['seg']
 
     return seg_
-
 
 
 # old -------------------------------------------------------------------------------------------------------:

@@ -206,10 +206,12 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
 
     #gdert.mask[1:] = gdert.mask[0]  # copy i mask to all other params
 
-    for i in range(len(g__[:-1, :-1])):
-        #print(gg__[i], '\n\n')
-        print(g__[:-1, :-1].mask[i], '\n\n', gg__.mask[i], '\n\n', mg__.mask[i], '\n\n', dx__.mask[:-1, :-1][i], '\n\n', dy__.mask[:-1, :-1][i], '\n\n')
-        print('--------------------------------')
+    #for i in range(len(g__[:-1, :-1])):
+    #    print(gg__[i], '\n\n')
+    #    print(g__[:-1, :-1].mask[i], '\n\n', gg__.mask[i], '\n\n', mg__.mask[i], '\n\n', dx__.mask[:-1, :-1][i], '\n\n', dy__.mask[:-1, :-1][i], '\n\n')
+#
+    #    print(g__[:-1, :-1][i], '\n\n', gg__[i], '\n\n', mg__[i], '\n\n', dx__[:-1, :-1][i], '\n\n', dy__[:-1, :-1][i], '\n\n')
+    #    print('--------------------------------')
 
     return ma.stack((g__[:-1, :-1],  # remove last row and column to align with derived params
                      dy__[:-1, :-1],
@@ -230,5 +232,11 @@ def shape_check(dert__):
         dert__ = dert__[:, :-1, :]
     if dert__[0].shape[1] % 2 != 0:
         dert__ = dert__[:, :, :-1]
+
+        # perform OR on unmasked value
+    merged_mask = dert__.mask[0]
+    for i in range(1, dert__.shape[0]):
+        merged_mask = ~np.bitwise_or(~merged_mask, ~dert__[i].mask)
+    dert__.mask[:] = merged_mask
 
     return dert__
