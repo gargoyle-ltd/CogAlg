@@ -1,5 +1,3 @@
-from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
-from CogAlg.frame_2D_alg.utils import *
 from CogAlg.frame_2D_alg.frame_blobs import *
 from CogAlg.frame_2D_alg.intra_comp import *
 import numpy as np
@@ -25,22 +23,17 @@ def mask_draw(dert_, coordinates, image, counter):
         new_img = image
         for i in range(len(new_img[coordinates[0]: mask.shape[0]])):
             for j in range(len(new_img[i][coordinates[2]:mask.shape[1]])):
-                #print(mask[i][j])
                 if mask[i][j] != 0:
                     new_img[coordinates[0] + i][coordinates[2] + j] = 250
                 else:
                     new_img[coordinates[0] + i][coordinates[2] + j] = 0
 
         img_mask = new_img.astype(np.uint8)
-        print(counter, val)
-        cv2.imshow('2', img_mask)
-        cv2.waitKey(0)
         cv2.imwrite("images/mask_blob/{0}_{1}.jpg".format(counter, val), img_mask)
 
 counter = 0
 for blob in frame['blob__']:
     counter += 1
-    print('COUNTER {}'.format(counter))
 
     if blob['sign']:
         if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
