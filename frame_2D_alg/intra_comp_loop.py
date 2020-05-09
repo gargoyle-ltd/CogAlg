@@ -1,4 +1,4 @@
-from math import sqrt
+from math import hypot
 
 import numpy as np
 import numpy.ma as ma
@@ -52,10 +52,18 @@ def comp_sin_cos(g, dy, dx):
     if g != 0:
         sin = (dy / g)
         cos = (dx / g)
+
     # if element is unmasked but denominator is 0
     elif g == 0:
-        sin = max
-        cos = max
+        if dy == 0:
+            sin = 0
+        else:
+            sin = max
+            
+        if dx == 0:
+            cos = 0
+        else:
+            cos = max
 
     return sin, cos
 
@@ -143,7 +151,7 @@ def comp_g_loop(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.
                 dgx = decompose_difference(g__[row][col + 1], g__[row + 1][col + 1], g__[row][col],
                                            g__[row + 1][col], cos0, cos1)
                 # gradient of gradient
-                gg = sqrt(dgy ** 2 + dgx ** 2)
+                gg = hypot(dgy,  dgx)
                 # match computation
                 mg = match_comp(g__[row][col], g__[row][col + 1], g__[row + 1][col + 1], g__[row + 1][col],
                                 cos_da0, cos_da1)
@@ -240,7 +248,7 @@ def comp_r_loop(dert__, fig, root_fcr):
                     dx = dt1 * XCOEFs[0][1] + dt2 * XCOEFs[0][1] + dt3 * XCOEFs[0][2] + dt4 * XCOEFs[1][2]
 
                     # gradient
-                    g = sqrt(dy ** 2 + dx ** 2)
+                    g = hypot(dy, dx)
 
                     '''inverse match = SAD, more precise measure of variation than g, direction-invariant)'''
                     m += (abs(i_center - i__[row][col]) +
@@ -321,7 +329,7 @@ def comp_r_loop(dert__, fig, root_fcr):
                          dt5 * XCOEFs[2][2] + dt6 * XCOEFs[2][1] + \
                          dt7 + XCOEFs[2][0] + dt8 * XCOEFs[1][0]
 
-                    g = sqrt(dy ** 2 + dx ** 2)
+                    g = hypot(dy, dx)
 
             i_cent_row.append(i_center)
             idy_cent_row.append(idy_center)
