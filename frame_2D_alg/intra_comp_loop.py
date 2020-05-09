@@ -23,7 +23,6 @@ max = 55
 
 
 
-
 def unpack_dert(dert__):
     # initialise the default mask with int values instead bool
     default_mask = dert__[0].mask.astype('int').tolist()
@@ -59,7 +58,7 @@ def comp_sin_cos(g, dy, dx):
             sin = 0
         else:
             sin = max
-            
+
         if dx == 0:
             cos = 0
         else:
@@ -110,50 +109,50 @@ def comp_g_loop(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.
     gg__ = []
     mg__ = []
 
-    for row in range((len(g__) - 1)):
+    for y in range((len(g__) - 1)):
         # create lists for each sin and cos row to add into final list
         dgy_row = []
         dgx_row = []
         gg_row = []
         mg_row = []
 
-        for col in range(len(g__[row]) - 1):
+        for x in range(len(g__[y]) - 1):
 
             # check for masking:
-            if default_mask[row][col] == 1:
+            if default_mask[y][x] == 1:
                 dgy = dgx = gg = mg = 0
 
             # if the element is real
             else:
                 # computing cos and sin
-                sin0, cos0 = comp_sin_cos(g__[row][col],
-                                          dy__[row][col],
-                                          dx__[row][col])
+                sin0, cos0 = comp_sin_cos(g__[y][x],
+                                          dy__[y][x],
+                                          dx__[y][x])
 
-                sin1, cos1 = comp_sin_cos(g__[row][col + 1],
-                                          dy__[row][col + 1],
-                                          dx__[row][col + 1])
+                sin1, cos1 = comp_sin_cos(g__[y][x + 1],
+                                          dy__[y][x + 1],
+                                          dx__[y][x + 1])
 
-                sin2, cos2 = comp_sin_cos(g__[row + 1][col + 1],
-                                          dy__[row + 1][col + 1],
-                                          dx__[row + 1][col + 1])
+                sin2, cos2 = comp_sin_cos(g__[y + 1][x + 1],
+                                          dy__[y + 1][x + 1],
+                                          dx__[y + 1][x + 1])
 
-                sin3, cos3 = comp_sin_cos(g__[row + 1][col],
-                                          dy__[row + 1][col],
-                                          dx__[row + 1][col])
+                sin3, cos3 = comp_sin_cos(g__[y + 1][x],
+                                          dy__[y + 1][x],
+                                          dx__[y + 1][x])
                 # computing cosine difference
                 cos_da0, cos_da1 = diff_cos(sin0, cos0, sin1, cos1, sin2, cos2, sin3, cos3)
 
                 # y-decomposed cosine difference between gs
-                dgy = decompose_difference(g__[row + 1][col], g__[row + 1][col + 1], g__[row][col],
-                                           g__[row][col + 1], cos0, cos1)
+                dgy = decompose_difference(g__[y + 1][x], g__[y + 1][x + 1], g__[y][x],
+                                           g__[y][x + 1], cos0, cos1)
                 # x-decomposed cosine difference between gs
-                dgx = decompose_difference(g__[row][col + 1], g__[row + 1][col + 1], g__[row][col],
-                                           g__[row + 1][col], cos0, cos1)
+                dgx = decompose_difference(g__[y][x + 1], g__[y + 1][x + 1], g__[y][x],
+                                           g__[y + 1][x], cos0, cos1)
                 # gradient of gradient
                 gg = hypot(dgy,  dgx)
                 # match computation
-                mg = match_comp(g__[row][col], g__[row][col + 1], g__[row + 1][col + 1], g__[row + 1][col],
+                mg = match_comp(g__[y][x], g__[y][x + 1], g__[y + 1][x + 1], g__[y + 1][x],
                                 cos_da0, cos_da1)
 
             # pack computed values in row
@@ -163,9 +162,9 @@ def comp_g_loop(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.
             mg_row.append(mg)
 
         # remove last column from every row of input parameters
-        g__[row].pop()
-        dy__[row].pop()
-        dx__[row].pop()
+        g__[y].pop()
+        dy__[y].pop()
+        dx__[y].pop()
 
         # add a new row into list of rows
         dgy__.append(dgy_row)
@@ -189,7 +188,6 @@ def comp_g_loop(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.
 
 
 def comp_r_loop(dert__, fig, root_fcr):
-    print(True)
 
     if isinstance(dert__, np.ndarray):
         dert__ = unpack_dert(dert__)
@@ -211,7 +209,7 @@ def comp_r_loop(dert__, fig, root_fcr):
         dy__, dx__, m__ = dert__[5:8]
 
 
-    for row in range(0, len(i__ - 2), 2):
+    for y in range(0, len(i__ - 2), 2):
         i_cent_row = []
         idy_cent_row = []
         idx_cent_row = []
@@ -220,28 +218,28 @@ def comp_r_loop(dert__, fig, root_fcr):
         dx_row = []
         m_row = []
 
-        for col in range(0, len(i__[row]) - 2, 2):
+        for x in range(0, len(i__[y]) - 2, 2):
 
             # check for masking:
-            if default_mask[row][col] == 1:
+            if default_mask[y][x] == 1:
                 i_center = idy_center = idx_center = m = g = dy = dx = 0
 
             else:
-                i_center = i__[row + 1][col + 1]
-                idy_center = idy__[row + 1][col + 1]
-                idx_center = idx__[row + 1][col + 1]
+                i_center = i__[y + 1][x + 1]
+                idy_center = idy__[y + 1][x + 1]
+                idx_center = idx__[y + 1][x + 1]
 
                 if root_fcr:
-                    m = m__[row][col]
+                    m = m__[y][col]
                 else:
                     m = 0
 
                 if not fig:
 
-                    dt1 = i__[row][col]     - i__[row + 2][col + 2]    # i__topleft - i__bottomright
-                    dt2 = i__[row][col + 1] - i__[row + 2][col + 1]    # i__top - i__bottom
-                    dt3 = i__[row][col + 2] - i__[row + 2][col]        # i__topright - i__bottomleft
-                    dt4 = i__[row + 1][col  + 2] - i__[row + 1][col]   # i__right - i__left
+                    dt1 = i__[y][x]     - i__[y + 2][x + 2]    # i__topleft - i__bottomright
+                    dt2 = i__[y][x + 1] - i__[y + 2][x + 1]    # i__top - i__bottom
+                    dt3 = i__[y][x + 2] - i__[y + 2][x]        # i__topright - i__bottomleft
+                    dt4 = i__[y + 1][x  + 2] - i__[y + 1][x]   # i__right - i__left
 
                     # dx and dy computation
                     dy = dt1 * YCOEFs[0][1] + dt2 * YCOEFs[0][1] + dt3 * YCOEFs[0][2] + dt4 * YCOEFs[1][2]
@@ -251,43 +249,43 @@ def comp_r_loop(dert__, fig, root_fcr):
                     g = hypot(dy, dx)
 
                     '''inverse match = SAD, more precise measure of variation than g, direction-invariant)'''
-                    m += (abs(i_center - i__[row][col]) +
-                          abs(i_center - i__[row][col + 1]) +
-                          abs(i_center - i__[row][col + 2]) +
-                          abs(i_center - i__[row + 1][col  + 2]) +
-                          abs(i_center - i__[row + 2][col + 2]) +
-                          abs(i_center - i__[row + 2][col + 1]) +
-                          abs(i_center - i__[row + 2][col]) +
-                          abs(i_center - i__[row + 1][col]))
+                    m += (abs(i_center - i__[y][x]) +
+                          abs(i_center - i__[y][x + 1]) +
+                          abs(i_center - i__[y][x + 2]) +
+                          abs(i_center - i__[y + 1][x  + 2]) +
+                          abs(i_center - i__[y + 2][x + 2]) +
+                          abs(i_center - i__[y + 2][x + 1]) +
+                          abs(i_center - i__[y + 2][x]) +
+                          abs(i_center - i__[y + 1][x]))
 
                 else: # fig is TRUE, compare angle and then magnitude of 8 center-rim pairs
                     # center
                     a_sin0, a_cos0 = comp_sin_cos(i_center, idy_center, idx_center)
 
                     # topleft
-                    a_sin1, a_cos1 = comp_sin_cos(i__[row][col],
-                                                  idy__[row][col], idx__[row][col])
+                    a_sin1, a_cos1 = comp_sin_cos(i__[y][x],
+                                                  idy__[y][x], idx__[y][x])
                     # top
-                    a_sin2, a_cos2 = comp_sin_cos(i__[row][col + 1],
-                                                  idy__[row][col + 1], idx__[row][col + 1])
+                    a_sin2, a_cos2 = comp_sin_cos(i__[y][x + 1],
+                                                  idy__[y][x + 1], idx__[y][x + 1])
                     # topright
-                    a_sin3, a_cos3 = comp_sin_cos(i__[row][col + 2],
-                                                  idy__[row][col + 2], idx__[row][col + 2])
+                    a_sin3, a_cos3 = comp_sin_cos(i__[y][x + 2],
+                                                  idy__[y][x + 2], idx__[y][x + 2])
                     # right
-                    a_sin4, a_cos4 = comp_sin_cos(i__[row + 1][col  + 2],
-                                                  idy__[row + 1][col  + 2], idx__[row + 1][col  + 2])
+                    a_sin4, a_cos4 = comp_sin_cos(i__[y + 1][x  + 2],
+                                                  idy__[y + 1][x  + 2], idx__[y + 1][x  + 2])
                     # bottomright
-                    a_sin5, a_cos5 = comp_sin_cos(i__[row + 2][col + 2],
-                                                  idy__[row + 2][col + 2], idx__[row + 2][col + 2])
+                    a_sin5, a_cos5 = comp_sin_cos(i__[y + 2][x + 2],
+                                                  idy__[y + 2][x + 2], idx__[y + 2][x + 2])
                     # bottom
-                    a_sin6, a_cos6 = comp_sin_cos(i__[row + 2][col + 1],
-                                                  idy__[row + 2][col + 1], idx__[row + 2][col + 1])
+                    a_sin6, a_cos6 = comp_sin_cos(i__[y + 2][x + 1],
+                                                  idy__[y + 2][x + 1], idx__[y + 2][x + 1])
                     # bottomleft
-                    a_sin7, a_cos7 = comp_sin_cos(i__[row + 2][col],
-                                                  idy__[row + 2][col], idx__[row + 2][col])
+                    a_sin7, a_cos7 = comp_sin_cos(i__[y + 2][x],
+                                                  idy__[y + 2][x], idx__[y + 2][x])
                     # left
-                    a_sin8, a_cos8 = comp_sin_cos(i__[row + 1][col],
-                                                  idy__[row + 1][col], idx__[row + 1][col])
+                    a_sin8, a_cos8 = comp_sin_cos(i__[y + 1][x],
+                                                  idy__[y + 1][x], idx__[y + 1][x])
 
                     # differences between center dert angle and rim dert angle
                     cos_da1 = (a_sin0 * a_cos0) + (a_sin1 * a_cos1)
@@ -300,24 +298,24 @@ def comp_r_loop(dert__, fig, root_fcr):
                     cos_da8 = (a_sin0 * a_cos0) + (a_sin8 * a_cos8)
 
                     # cosine matches per direction
-                    m += (min(i_center, i__[row][col])          * cos_da1) +  \
-                         (min(i_center, i__[row][col + 1])      * cos_da2) +  \
-                         (min(i_center, i__[row][col + 2])      * cos_da3) +  \
-                         (min(i_center, i__[row + 1][col  + 2]) * cos_da4) +  \
-                         (min(i_center, i__[row + 2][col + 2])  * cos_da5) +  \
-                         (min(i_center, i__[row + 2][col + 1])  * cos_da6) +  \
-                         (min(i_center, i__[row + 2][col])      * cos_da7) +  \
-                         (min(i_center, i__[row + 1][col])      * cos_da8)
+                    m += (min(i_center, i__[y][x])          * cos_da1) +  \
+                         (min(i_center, i__[y][x + 1])      * cos_da2) +  \
+                         (min(i_center, i__[y][x + 2])      * cos_da3) +  \
+                         (min(i_center, i__[y + 1][x  + 2]) * cos_da4) +  \
+                         (min(i_center, i__[y + 2][x + 2])  * cos_da5) +  \
+                         (min(i_center, i__[y + 2][x + 1])  * cos_da6) +  \
+                         (min(i_center, i__[y + 2][x])      * cos_da7) +  \
+                         (min(i_center, i__[y + 1][x])      * cos_da8)
 
                     # cosine differences per direction
-                    dt1 = i_center - i__[row][col]          * cos_da1
-                    dt2 = i_center - i__[row][col + 1]      * cos_da2
-                    dt3 = i_center - i__[row][col + 2]      * cos_da3
-                    dt4 = i_center - i__[row + 1][col  + 2] * cos_da4
-                    dt5 = i_center - i__[row + 2][col + 2]  * cos_da5
-                    dt6 = i_center - i__[row + 2][col + 1]  * cos_da6
-                    dt7 = i_center - i__[row + 2][col]      * cos_da7
-                    dt8 = i_center - i__[row + 1][col]      * cos_da8
+                    dt1 = i_center - i__[y][x]          * cos_da1
+                    dt2 = i_center - i__[y][x + 1]      * cos_da2
+                    dt3 = i_center - i__[y][x + 2]      * cos_da3
+                    dt4 = i_center - i__[y + 1][x  + 2] * cos_da4
+                    dt5 = i_center - i__[y + 2][x + 2]  * cos_da5
+                    dt6 = i_center - i__[y + 2][x + 1]  * cos_da6
+                    dt7 = i_center - i__[y + 2][x]      * cos_da7
+                    dt8 = i_center - i__[y + 1][x]      * cos_da8
 
                     dy = dt1 * YCOEFs[0][0] + dt2 * YCOEFs[0][1] + \
                          dt3 * YCOEFs[0][2] + dt4 * YCOEFs[1][2] + \
