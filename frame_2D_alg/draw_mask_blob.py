@@ -24,9 +24,9 @@ def mask_draw(dert_, coordinates, image, counter):
         for i in range(len(new_img[coordinates[0]: mask.shape[0]])):
             for j in range(len(new_img[i][coordinates[2]:mask.shape[1]])):
                 if mask[i][j] != 0:
-                    new_img[coordinates[0] + i][coordinates[2] + j] = 250
-                else:
                     new_img[coordinates[0] + i][coordinates[2] + j] = 0
+                else:
+                    new_img[coordinates[0] + i][coordinates[2] + j] = 250
 
         img_mask = new_img.astype(np.uint8)
         cv2.imwrite("images/mask_blob/{0}_{1}.jpg".format(counter, val), img_mask)

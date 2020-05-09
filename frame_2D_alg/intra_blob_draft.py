@@ -4,6 +4,7 @@ from itertools import groupby, starmap
 
 from CogAlg.frame_2D_alg.intra_comp import *
 from CogAlg.frame_2D_alg.utils import pairwise, flatten
+from CogAlg.frame_2D_alg.intra_comp_loop import comp_g_loop
 
 '''
     2D version of 1st-level algorithm is a combination of frame_blobs, intra_blob, and comp_P: optional raster-to-vector conversion.
@@ -90,12 +91,6 @@ def dert_check(dert__, root_func):
                     list_of_vals.append(6)
                     coordinates.append((i , j))
 
-    for index, er in enumerate(list_of_vals):
-        print('\n\n------------------------------------------\n\n')
-        print(coordinates[index],er-1, dert__[er - 1][coordinates[index][0]])
-        print(coordinates[index],er, dert__[er][coordinates[index][0]])
-        print('\n\n------------------------------------------\n\n')
-
 
 
 
@@ -106,10 +101,9 @@ def intra_blob(blob, rdn, rng, fig, fcr):  # recursive input rng+ | der+ cross-c
     # dert_check(blob['dert__'])
     if fcr:
         dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  # -> m sub_blobs
-        func='comp_r'
     else:
-        dert__ = comp_g(blob['dert__'])  # -> g sub_blobs
-        func='comp_g'
+        #dert__ = comp_g_loop(blob['dert__'])  # -> g sub_blobs
+        comp_g_loop(blob['dert__'])  # -> g sub_blobs
     #dert_check(dert__, func)
 
     # cluster_derts(blob, dert__, ave * rdn, fcr, fig)

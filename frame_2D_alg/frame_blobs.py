@@ -301,9 +301,10 @@ if __name__ == '__main__':
         counter = 0
         for blob in frame['blob__']:
             counter += 1
-            print('COUNTER {}'.format(counter))
+
             if blob['sign']:
                 if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
+                    print('COUNTER {}'.format(counter))
                     intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
 
             #elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
