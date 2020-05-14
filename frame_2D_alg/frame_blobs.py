@@ -42,7 +42,6 @@ from CogAlg.frame_2D_alg.utils import *
 kwidth = 3  # smallest input-centered kernel: frame | blob shrink by 2 pixels per row
 ave = 30  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
 
-
 # ----------------------------------------------------------------------------------------------------------------------------------------
 # Functions
 
@@ -66,23 +65,23 @@ def comp_pixel(image):  # current version of 2x2 pixel cross-correlation within 
 
 
 def image_to_blobs(image):
+
     dert__ = comp_pixel(image)  # 2x2 cross-comparison / cross-correlation
 
     frame = dict(rng=1, dert__=dert__, mask=None, I=0, G=0, Dy=0, Dx=0, blob__=[])
     stack_ = deque()  # buffer of running vertical stacks of Ps
     height, width = dert__.shape[1:]
 
-    for y in range(height):  # first and last row are discarded
+    for y in range(height-350):  # first and last row are discarded
         print(f'Processing line {y}...')
-        P_ = form_P_(dert__[:, y].T)  # horizontal clustering
-        P_ = scan_P_(P_, stack_, frame)  # vertical clustering, adds up_forks per P and down_fork_cnt per stack
+        P_ = form_P_(dert__[:, y].T)      # horizontal clustering
+        P_ = scan_P_(P_, stack_, frame)   # vertical clustering, adds up_forks per P and down_fork_cnt per stack
         stack_ = form_stack_(y, P_, frame)
 
     while stack_:  # frame ends, last-line stacks are merged into their blobs:
         form_blob(stack_.popleft(), frame)
 
     return frame  # frame of blobs
-
 
 ''' 
 Parameterized connectivity clustering functions below:
@@ -91,11 +90,10 @@ Parameterized connectivity clustering functions below:
 - form_stack combines these overlapping Ps into vertical stacks of Ps, with 1 up_P to 1 down_P
 - form_blob merges terminated or forking stacks into blob, removes redundant representations of the same blob 
   by multiple forked P stacks, then checks for blob termination and merger into whole-frame representation.
-
+  
 dert: tuple of derivatives per pixel, initially (p, dy, dx, g, i), will be extended in intra_blob
 Dert: params of composite structures (P, stack, blob): summed dert params + dimensions: vertical Ly and area S
 '''
-
 
 def form_P_(dert__):  # horizontal clustering and summation of dert params into P params, per row of a frame
     # P is a segment of same-sign derts in horizontal slice of a blob
@@ -141,16 +139,16 @@ def scan_P_(P_, stack_, frame):  # merge P into higher-row stack of Ps which hav
 
     if P_ and stack_:  # if both input row and higher row have any Ps / _Ps left
 
-        P = P_.popleft()  # load left-most (lowest-x) input-row P
+        P = P_.popleft()          # load left-most (lowest-x) input-row P
         stack = stack_.popleft()  # higher-row stacks
-        _P = stack['Py_'][-1]  # last element of each stack is higher-row P
-        up_fork_ = []  # list of same-sign x-overlapping _Ps per P
+        _P = stack['Py_'][-1]     # last element of each stack is higher-row P
+        up_fork_ = []             # list of same-sign x-overlapping _Ps per P
 
         while True:  # while both P_ and stack_ are not empty
 
-            x0 = P['x0']  # first x in P
-            xn = x0 + P['L']  # first x in next P
-            _x0 = _P['x0']  # first x in _P
+            x0 = P['x0']         # first x in P
+            xn = x0 + P['L']     # first x in next P
+            _x0 = _P['x0']       # first x in _P
             _xn = _x0 + _P['L']  # first x in next _P
 
             if (P['sign'] == stack['sign']
@@ -217,7 +215,7 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
 
                 if len(up_fork_) > 1:  # merge blobs of all up_forks
                     if up_fork_[0]['down_fork_cnt'] == 1:  # up_fork is not terminated
-                        form_blob(up_fork_[0], frame)  # merge stack of 1st up_fork into its blob
+                        form_blob(up_fork_[0], frame)      # merge stack of 1st up_fork into its blob
 
                     for up_fork in up_fork_[1:len(up_fork_)]:  # merge blobs of other up_forks into blob of 1st up_fork
                         if up_fork['down_fork_cnt'] == 1:
@@ -279,8 +277,8 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
 
         blob.pop('open_stacks')
         blob.update(root=frame,
-                    box=(y0, yn, x0, xn),  # boundary box
-                    dert__=dert__,  # includes mask
+                    box=(y0, yn, x0, xn),   # boundary box
+                    dert__=dert__,          # includes mask
                     fork=defaultdict(dict)  # will contain fork params, layer_
                     )
         frame.update(I=frame['I'] + blob['Dert']['I'],
@@ -290,13 +288,11 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
 
         frame['blob__'].append(blob)
 
-
 # -----------------------------------------------------------------------------
 # Utilities
 
 def accum_Dert(Dert: dict, **params) -> None:
     Dert.update({param: Dert[param] + value for param, value in params.items()})
-
 
 # -----------------------------------------------------------------------------
 # Main
@@ -312,69 +308,44 @@ if __name__ == '__main__':
     start_time = time()
     frame = image_to_blobs(image)
 
-    intra = 0
-    if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
-
-        from CogAlg.frame_2D_alg.intra_blob_draft import *
-
-        deep_frame = frame, frame
-        # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
-
-        for blob in frame['blob__']:
-
-            if blob['sign']:
-                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
-                    intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
-
-            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
-                intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
-                '''
-                with feedback:
-                dert__ = comp_a|r(blob['dert__'], rng=1)  
-                deep_frame['layer_'] = intra_blob(blob, dert__, rng=3, rdn=1, fig=0, fca=0)  
-                deep_frame['blob_'].append(blob)  # extended by cluster_eval
-                deep_frame['params'][1:] += blob['params'][1:]  # incorrect, for selected blob params only?
-                '''
-            # else no intra_blob call
-
-    end_time = time() - start_time
-    print(end_time)
-
-    # DEBUG -------------------------------------------------------------------
-
-    '''
-    imwrite("images/gblobs.bmp",
-        map_frame_binary(frame,
-                         sign_map={
-                             1: WHITE,  # 2x2 gblobs
-                             0: BLACK
-                         }))
-    '''
-    # END DEBUG ---------------------------------------------------------------/raccoon_eye.jpg')
-    arguments = vars(argument_parser.parse_args())
-    image = imread(arguments['image'])
-
-    start_time = time()
-    frame = image_to_blobs(image)
-
+    deep_blob_number = []
+    bcount = -1
     intra = 1
     if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
 
-        from CogAlg.frame_2D_alg.intra_blob_draft import *
+        from intra_blob_draft import intra_blob
+        aveB = 10
 
         deep_frame = frame, frame
         # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
-        counter = 0
+
+        check_deeper_layers = 0
         for blob in frame['blob__']:
-            counter += 1
+
+            bcount+=1
+            print('Processing blob number '+str(bcount))
+
+
+            blob.update({'fcr':0, 'fig':0, 'rdn':0, 'rng':1, 'ls':0, 'deep_sub_layers':[], 'sub_layers':[],'sub_blobs':[]})
+
 
             if blob['sign']:
-                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20:
-                    print('COUNTER {}'.format(counter))
+                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20 and blob['dert__'].shape[1]>4 and blob['dert__'].shape[2]>4:
+
+
                     intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
 
-            #elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 30:
-                #intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
+            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 6 and blob['dert__'].shape[1]>4 and blob['dert__'].shape[2]>4:
+
+
+                intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
+
+
+            # find blob number with deep layers
+            if len(blob['deep_sub_layers']) > 0:
+
+                deep_blob_number.append(bcount)
+
                 '''
                 with feedback:
                 dert__ = comp_a|r(blob['dert__'], rng=1)  
@@ -382,17 +353,20 @@ if __name__ == '__main__':
                 deep_frame['blob_'].append(blob)  # extended by cluster_eval
                 deep_frame['params'][1:] += blob['params'][1:]  # incorrect, for selected blob params only?
                 '''
+
             # else no intra_blob call
 
     end_time = time() - start_time
     print(end_time)
 
     # DEBUG -------------------------------------------------------------------
+
+'''
     imwrite("images/gblobs.bmp",
         map_frame_binary(frame,
                          sign_map={
                              1: WHITE,  # 2x2 gblobs
                              0: BLACK
                          }))
-
+'''
     # END DEBUG ---------------------------------------------------------------
