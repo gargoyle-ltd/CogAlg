@@ -4,7 +4,7 @@ from itertools import groupby, starmap
 
 from CogAlg.frame_2D_alg.intra_comp import *
 from CogAlg.frame_2D_alg.utils import pairwise, flatten
-from CogAlg.frame_2D_alg.intra_comp_loop import comp_g_loop
+#from CogAlg.frame_2D_alg.intra_comp_loop import comp_g_loop
 
 '''
     2D version of 1st-level algorithm is a combination of frame_blobs, intra_blob, and comp_P: optional raster-to-vector conversion.
@@ -60,18 +60,18 @@ def intra_blob(blob, rdn, rng, fig, fcr):  # recursive input rng+ | der+ cross-c
     # fig: flag input is g, fcr: flag comp over rng+
 
     if fcr: dert__ = comp_r(blob['dert__'], fig, blob['root']['fcr'])  #-> m sub_blobs
-    else:   dert__ = comp_g(blob['dert__'])  #-> g sub_blobs:
+    else:   dert__ = comp_g(blob['dert__'], flag=False)  #-> g sub_blobs:
 
-    cluster_derts(blob, dert__, ave*rdn, fcr, fig)
+    #cluster_derts(blob, dert__, ave*rdn, fcr, fig)
     # feedback: root['layer_'] += [[(lL, fig, fcr, rdn, rng, blob['sub_blob_'])]]  # 1st layer
 
-    for sub_blob in blob['sub_blobs']:  # eval intra_blob comp_g | comp_rng if low gradient
+    '''for sub_blob in blob['sub_blobs']:  # eval intra_blob comp_g | comp_rng if low gradient
         if sub_blob['sign']:
             if sub_blob['Dert']['M'] > aveB * rdn:  # -> comp_r:
                 intra_blob(sub_blob, rdn + 1, rng**2, fig=fig, fcr=1)  # rng=1 in first call
 
         elif sub_blob['Dert']['G'] > aveB * rdn:
-            intra_blob(sub_blob, rdn + 1, rng=rng, fig=1, fcr=0)  # -> comp_g
+            intra_blob(sub_blob, rdn + 1, rng=rng, fig=1, fcr=0)  # -> comp_g'''
     '''
     feedback:
     for sub_blob in blob['sub_blobs']:
