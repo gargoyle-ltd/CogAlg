@@ -16,10 +16,8 @@ XCOEFs = np.array([-1, 0, 1, 2, 1, 0, -1, -2])
             1   2   1  ¦          -1   0   1  ¦
 '''
 
-
 def comp_r(dert__, fig, root_fcr):
     """
-    conversion to 2-fork version is not finished
     Cross-comparison of input param (dert[0]) over rng passed from intra_blob.
     This fork is selective for blobs with below-average gradient,
     where input intensity didn't vary much in shorter-range cross-comparison.
@@ -165,34 +163,28 @@ def comp_r(dert__, fig, root_fcr):
                      m__
                      ))
 
-
 def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
 
     dert__ = shape_check(dert__)  # remove derts of incomplete kernels
-    print('comp_g')
-
-    g__, dy__, dx__ = dert__[[3, 4, 5]]  # top dimension of numpy stack must be a list
+    g__, dy__, dx__ = dert__[[3, 4, 5]]  # g, dy, dx -> local i, idy, idx
 
     g0__, dy0__, dx0__ = g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1]  # top left
-    g1__, dy1__, dx1__ = g__[:-1, 1:], dy__[:-1, 1:], dx__[:-1, 1:]  # top right
-    g2__, dy2__, dx2__ = g__[1:, 1:], dy__[1:, 1:], dx__[1:, 1:]  # bottom right
-    g3__, dy3__, dx3__ = g__[1:, :-1], dy__[1:, :-1], dx__[1:, :-1]  # bottom left
+    g1__, dy1__, dx1__ = g__[:-1, 1:],  dy__[:-1, 1:],  dx__[:-1, 1:]   # top right
+    g2__, dy2__, dx2__ = g__[1:, 1:],   dy__[1:, 1:],   dx__[1:, 1:]    # bottom right
+    g3__, dy3__, dx3__ = g__[1:, :-1],  dy__[1:, :-1],  dx__[1:, :-1]   # bottom left
 
-    sin0__ = dy0__ / g0__
-    cos0__ = dx0__ / g0__
-    sin1__ = dy1__ / g1__
-    cos1__ = dx1__ / g1__
-    sin2__ = dy2__ / g2__
-    cos2__ = dx2__ / g2__
-    sin3__ = dy3__ / g3__
-    cos3__ = dx3__ / g3__
+    sin0__ = dy0__ / g0__;  cos0__ = dx0__ / g0__
+    sin1__ = dy1__ / g1__;  cos1__ = dx1__ / g1__
+    sin2__ = dy2__ / g2__;  cos2__ = dx2__ / g2__
+    sin3__ = dy3__ / g3__;  cos3__ = dx3__ / g3__
     '''
-    cosine of difference between diagonally opposed angles, in vector representation:
+    cosine of difference between diagonally opposed angles, in vector representation
+    print(cos_da1__.shape, type(cos_da1__))
     '''
     cos_da0__ = (sin0__ * cos0__) + (sin2__ * cos2__)  # top left to bottom right
     cos_da1__ = (sin1__ * cos1__) + (sin3__ * cos3__)  # top right to bottom left
 
-    dgy__ = ((g3__ + g2__) - (g0__ * cos_da0__ + g1__* cos_da1__))
+    dgy__ = ((g3__ + g2__) - (g0__ * cos_da0__ + g1__ * cos_da1__))
     # y-decomposed cosine difference between gs
 
     dgx__ = ((g1__ + g2__) - (g0__ * cos_da0__ + g3__ * cos_da1__))
@@ -202,19 +194,20 @@ def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack
 
     mg0__ = np.minimum(g0__, g2__) * cos_da0__  # g match = min(g, _g) *cos(da)
     mg1__ = np.minimum(g1__, g3__) * cos_da1__
-    mg__ = mg0__ + mg1__
+    mg__  = mg0__ + mg1__
 
-    return ma.stack((g__[:-1, :-1],  # remove last row and column to align with derived params
-                     dy__[:-1, :-1],
-                     dx__[:-1, :-1],  # -> idy, idx to compute cos for comp rg
-                     gg__,
-                     dgy__,
-                     dgx__,
-                     mg__))
-
-
-
-
+    '''
+    next comp_rg will use g, dy, dx     
+    next comp_gg will use gg, dgy, dgx  
+    '''
+    return  ma.stack((g__ [:-1, :-1],  # remove last row and column to align with derived params
+                      dy__[:-1, :-1],
+                      dx__[:-1, :-1],  # -> idy, idx to compute cos for comp rg
+                      gg__,
+                      dgy__,
+                      dgx__,
+                      mg__
+                      ))
 
 def shape_check(dert__):
     # remove derts of 2x2 kernels that are missing some other derts
@@ -223,11 +216,5 @@ def shape_check(dert__):
         dert__ = dert__[:, :-1, :]
     if dert__[0].shape[1] % 2 != 0:
         dert__ = dert__[:, :, :-1]
-
-        # perform OR on unmasked value
-    merged_mask = dert__.mask[0]
-    for i in range(1, dert__.shape[0]):
-        merged_mask = ~np.bitwise_or(~merged_mask, ~dert__[i].mask)
-    dert__.mask[:] = merged_mask
 
     return dert__
