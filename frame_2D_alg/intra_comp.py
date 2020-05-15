@@ -49,7 +49,7 @@ def comp_r(dert__, fig, root_fcr):
     i__left = i__[1:-1:2, :-2:2]
 
     i__center.mask, i__topleft.mask, i__top.mask, i__topright.mask, i__right.mask, i__bottomright.mask, i__bottom.mask, \
-    i__bottomleft.mask, i__left.mask = mask_check(
+    i__bottomleft.mask, i__left.mask = mask_OR(
         [i__center.mask, i__topleft.mask, i__top.mask, i__topright.mask, i__right.mask, i__bottomright.mask,
          i__bottom.mask, i__bottomleft.mask, i__left.mask])
 
@@ -113,7 +113,7 @@ def comp_r(dert__, fig, root_fcr):
         a__left = a__[:, 1:-1:2, :-2:2]
 
         a__center.mask, a__topleft.mask, a__top.mask, a__topright.mask, a__right.mask, a__bottomright.mask, \
-        a__bottom.mask, a__bottomleft.mask, a__left.mask = mask_check(
+        a__bottom.mask, a__bottomleft.mask, a__left.mask = mask_OR(
             [a__center.mask, a__topleft.mask, a__top.mask, a__topright.mask, a__right.mask, a__bottomright.mask,
              a__bottom.mask, a__bottomleft.mask, a__left.mask])
 
@@ -190,7 +190,8 @@ def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma
     g2__, dy2__, dx2__ = g__[1:, 1:], dy__[1:, 1:], dx__[1:, 1:]  # bottom right
     g3__, dy3__, dx3__ = g__[1:, :-1], dy__[1:, :-1], dx__[1:, :-1]  # bottom left
 
-    g0__.mask, g1__.mask, g2__.mask, g3__.mask = mask_check([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
+    g0__.mask, g1__.mask, g2__.mask, g3__.mask = \
+        mask_OR([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
     dy0__.mask = dx0__.mask = dy1__.mask = dx1__.mask = dy2__.mask = dx2__.mask = dy3__.mask = dx3__.mask = g0__.mask
 
     sin0__ = dy0__ / g0__; cos0__ = dx0__ / g0__
@@ -250,7 +251,7 @@ def normalization(array):
     return res
 
 
-def mask_check(list_or_arrays):
+def mask_OR(list_or_arrays):
     # for comp_g
     if len(list_or_arrays) == 4:
         for y in range(len(list_or_arrays[0])):
@@ -262,13 +263,36 @@ def mask_check(list_or_arrays):
 
     # for comp_r
     if len(list_or_arrays) == 9:
-        for y in range(len(list_or_arrays[0])):
-            for x in range(len(list_or_arrays[0][y])):
-                if list_or_arrays[0][y][x] or list_or_arrays[1][y][x] or list_or_arrays[2][y][x] or \
-                        list_or_arrays[3][y][x] or list_or_arrays[4][y][x] or list_or_arrays[5][y][x] or \
-                        list_or_arrays[6][y][x] or list_or_arrays[7][y][x] or list_or_arrays[8][y][x]:
-                    list_or_arrays[0][y][x] = list_or_arrays[1][y][x] = list_or_arrays[2][y][x] = \
-                        list_or_arrays[3][y][x] = list_or_arrays[4][y][x] = list_or_arrays[5][y][x] = \
-                        list_or_arrays[6][y][x] = list_or_arrays[7][y][x] = list_or_arrays[8][y][x] = True
+        for y in range(len(list_or_arrays[0][0])):
+            for x in range(len(list_or_arrays[0][0][y])):
+                if list_or_arrays[0][0][y][x] or list_or_arrays[1][0][y][x] or list_or_arrays[2][0][y][x] or \
+                        list_or_arrays[3][0][y][x] or list_or_arrays[4][0][y][x] or list_or_arrays[5][0][y][x] or \
+                        list_or_arrays[6][0][y][x] or list_or_arrays[7][0][y][x] or list_or_arrays[8][0][y][x]:
+                    list_or_arrays[0][:][y][x] = list_or_arrays[1][:][y][x] = list_or_arrays[2][:][y][x] = \
+                        list_or_arrays[3][:][y][x] = list_or_arrays[4][:][y][x] = list_or_arrays[5][:][y][x] = \
+                        list_or_arrays[6][:][y][x] = list_or_arrays[7][:][y][x] = list_or_arrays[8][:][y][x] = True
 
     return list_or_arrays
+
+
+def mask_projection(list_of_arrays):
+    # top_left, top_right, bottom_right, bottom_left
+    for y in range(len(list_of_arrays[0])):
+        for x in range(len(list_of_arrays[0][y])):
+            if [list_of_arrays[0].mask[y][x], list_of_arrays[1].mask[y][x], list_of_arrays[2].mask[y][x],
+                    list_of_arrays[3].mask[y][x]].count(True) == 1:
+
+                    if list_of_arrays[0].mask[y][x] == True:
+                        list_of_arrays[0][y][x] = list_of_arrays[2][y][x] / 2
+                        list_of_arrays[0].mask[y][x] = list_of_arrays[1].mask[y][x] = \
+                            list_of_arrays[2].mask[y][x] = list_of_arrays[3].mask[y][x] = False
+
+                    elif list_of_arrays[3].mask[y][x] == True:
+                        list_of_arrays[3][y][x] = list_of_arrays[1][y][x] / 2
+                        list_of_arrays[0].mask[y][x] = list_of_arrays[1].mask[y][x] = \
+                            list_of_arrays[2].mask[y][x] = list_of_arrays[3].mask[y][x] = False
+                    else:
+                        list_of_arrays[0].mask[y][x] = list_of_arrays[1].mask[y][x] = \
+                            list_of_arrays[2].mask[y][x] = list_of_arrays[3].mask[y][x] = True
+    return list_of_arrays
+
