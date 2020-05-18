@@ -17,14 +17,12 @@ from CogAlg.frame_2D_alg.utils import *
     Higher-row elements include additional parameters, derived while they were lower-row elements. Processing is bottom-up:
     from input-row to higher-row structures, sequential because blobs are irregular, not suited for matrix operations.
     Resulting blob structure (fixed set of parameters per blob): 
-    - root_fork = frame,  # replaced by blob-level fork in sub_blobs
     - Dert = I, G, Dy, Dx, S, Ly: summed pixel-level dert params I, G, Dy, Dx, surface area S, vertical depth Ly
     - sign = s: sign of gradient deviation
     - box  = [y0, yn, x0, xn], 
-    - map, # inverted mask
     - dert__,  # 2D array of pixel-level derts: (p, g, dy, dx) tuples
     - stack_,  # contains intermediate blob composition structures: stacks and Ps, not meaningful on their own
-    ( intra_blob structure extends Dert, adds crit, rng, fork_)
+    ( intra_blob structure extends Dert, adds fork params and sub_layers)
     Blob is 2D pattern: connectivity cluster defined by the sign of gradient deviation. Gradient represents 2D variation
     per pixel. It is used as inverse measure of partial match (predictive value) because direct match (min intensity) 
     is not meaningful in vision. Intensity of reflected light doesn't correlate with predictive value of observed object 
@@ -72,8 +70,9 @@ def image_to_blobs(image):
     stack_ = deque()  # buffer of running vertical stacks of Ps
     height, width = dert__.shape[1:]
 
-    for y in range(height-350):  # first and last row are discarded
+    for y in range(height):  # first and last row are discarded
         print(f'Processing line {y}...')
+
         P_ = form_P_(dert__[:, y].T)      # horizontal clustering
         P_ = scan_P_(P_, stack_, frame)   # vertical clustering, adds up_forks per P and down_fork_cnt per stack
         stack_ = form_stack_(y, P_, frame)
@@ -276,10 +275,9 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
         frame['dert__'][:, y0:yn, x0:xn] = dert__.copy()  # assign mask back to frame dert__
 
         blob.pop('open_stacks')
-        blob.update(root=frame,
-                    box=(y0, yn, x0, xn),   # boundary box
-                    dert__=dert__,          # includes mask
-                    fork=defaultdict(dict)  # will contain fork params, layer_
+        blob.update(root_dert__=frame['dert__'],
+                    box=(y0, yn, x0, xn),
+                    dert__=dert__
                     )
         frame.update(I=frame['I'] + blob['Dert']['I'],
                      G=frame['G'] + blob['Dert']['G'],
@@ -308,53 +306,66 @@ if __name__ == '__main__':
     start_time = time()
     frame = image_to_blobs(image)
 
-    deep_blob_number = []
-    bcount = -1
-    intra = 1
+    intra = 0
     if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
 
-        from intra_blob_draft import intra_blob
-        aveB = 10
-
+        from CogAlg.frame_2D_alg.intra_blob_draft import *
         deep_frame = frame, frame
-        # initialize deep_frame with root=frame, ini params=frame, initialize deeper params when fetched
+        bcount=0
+        deep_blob_i_ = []
+        deep_layers = []
+        layer_count = 0
 
-        check_deeper_layers = 0
         for blob in frame['blob__']:
-
-            bcount+=1
-            print('Processing blob number '+str(bcount))
-
-
-            blob.update({'fcr':0, 'fig':0, 'rdn':0, 'rng':1, 'ls':0, 'deep_sub_layers':[], 'sub_layers':[],'sub_blobs':[]})
-
+            bcount += 1
+#            print('Processing blob number ' + str(bcount))
+#            blob.update({'fcr': 0, 'fig': 0, 'rdn': 0, 'rng': 1, 'ls': 0, 'sub_layers': []})
 
             if blob['sign']:
-                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20 and blob['dert__'].shape[1]>4 and blob['dert__'].shape[2]>4:
+                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20 and blob['dert__'].shape[1] > 4 and blob['dert__'].shape[2] > 4:
 
+                    new_dert__ = np.zeros((7, blob['dert__'].shape[1], blob['dert__'].shape[2]))
+                    mask = blob['dert__'][0].mask
 
-                    intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0)  # +G blob' dert__' comp_g
+                    new_dert__[0] = blob['dert__'][0]  # i
+                    new_dert__[1] = 0; new_dert__[1].mask = mask  # idy
+                    new_dert__[2] = 0; new_dert__[2].mask = mask  # idx
+                    new_dert__[3] = blob['dert__'][1]  # g
+                    new_dert__[4] = blob['dert__'][2]  # dy
+                    new_dert__[5] = blob['dert__'][3]  # dx
+                    new_dert__[6] = 0; new_dert__[6].mask = mask  # m
 
-            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 6 and blob['dert__'].shape[1]>4 and blob['dert__'].shape[2]>4:
+                    blob['dert__'] = new_dert__.copy()
+                    '''
+                    or:
+                    for (p, dy, dx, g), i in enumerate( blob['dert__'] ):
+                        blob['dert__'][i] = p, 0, 0, g, dy, dx, 0  # idt, idx, m = 0
+                    '''
+                    deep_layers.append(intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0))  # +G blob' dert__' comp_g
+                    layer_count+=1
 
+            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 6 and blob['dert__'].shape[1] > 4 and blob['dert__'].shape[2] > 4:
 
-                intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1)  # -G blob' dert__' comp_r in 3x3 kernels
+                new_dert__ = np.zeros((7, blob['dert__'].shape[1], blob['dert__'].shape[2]))
+                mask = blob['dert__'][0].mask
 
+                new_dert__[0] = blob['dert__'][0]  # i
+                new_dert__[1] = 0; new_dert__[1].mask = mask  # idy
+                new_dert__[2] = 0; new_dert__[2].mask = mask  # idx
+                new_dert__[3] = blob['dert__'][1]  # g
+                new_dert__[4] = blob['dert__'][2]  # dy
+                new_dert__[5] = blob['dert__'][3]  # dx
+                new_dert__[6] = 0; new_dert__[6].mask = mask  # m
 
-            # find blob number with deep layers
-            if len(blob['deep_sub_layers']) > 0:
+                blob['dert__'] = new_dert__.copy()
 
-                deep_blob_number.append(bcount)
+                deep_layers.append(intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1))  # -G blob' dert__' comp_r in 3x3 kernels
+                layer_count+=1
 
-                '''
-                with feedback:
-                dert__ = comp_a|r(blob['dert__'], rng=1)  
-                deep_frame['layer_'] = intra_blob(blob, dert__, rng=3, rdn=1, fig=0, fca=0)  
-                deep_frame['blob_'].append(blob)  # extended by cluster_eval
-                deep_frame['params'][1:] += blob['params'][1:]  # incorrect, for selected blob params only?
-                '''
+            if len(deep_layers) > 0:
+                if len(deep_layers[layer_count-1]) > 2:
+                    deep_blob_i_.append(bcount)  # indices of blobs with deep layers
 
-            # else no intra_blob call
 
     end_time = time() - start_time
     print(end_time)
