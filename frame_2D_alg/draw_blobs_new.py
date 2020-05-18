@@ -264,7 +264,7 @@ def draw_masks(frame):
         mask = 255 - (frame['blob__'][i]['dert__'].mask[0] * 255)
         img_mask = mask.astype('uint8')
 
-        cv2.imwrite("images/masks/mask" + str(i) + ".bmp", img_mask)
+        cv2.imwrite("images/masks2/mask" + str(i) + ".bmp", img_mask)
 
 
 # Main #

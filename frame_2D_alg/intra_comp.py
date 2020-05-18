@@ -50,9 +50,9 @@ def comp_r(dert__, fig, root_fcr):
 
     idy__, idx__ = dert__[[1, 2]]
 
-    i__center.mask, i__topleft.mask, i__top.mask, i__topright.mask, i__right.mask, i__bottomright.mask, i__bottom.mask, \
-    i__bottomleft.mask, i__left.mask = \
-        mask_OR(
+    i__center.mask = i__topleft.mask = i__top.mask = i__topright.mask = i__right.mask = i__bottomright.mask = i__bottom.mask= \
+    i__bottomleft.mask = i__left.mask = \
+        mask_AND(
         [i__center.mask, i__topleft.mask, i__top.mask, i__topright.mask, i__right.mask, i__bottomright.mask,
          i__bottom.mask, i__bottomleft.mask, i__left.mask])
 
@@ -114,8 +114,8 @@ def comp_r(dert__, fig, root_fcr):
         a__bottomleft =  a__[:, 2::2, :-2:2]
         a__left =        a__[:, 1:-1:2, :-2:2]
 
-        a__center.mask, a__topleft.mask, a__top.mask, a__topright.mask, a__right.mask, a__bottomright.mask, \
-        a__bottom.mask, a__bottomleft.mask, a__left.mask = \
+        a__center.mask = a__topleft.mask = a__top.mask = a__topright.mask = a__right.mask = a__bottomright.mask = \
+        a__bottom.mask = a__bottomleft.mask = a__left.mask = \
             mask_AND(
             [a__center.mask, a__topleft.mask, a__top.mask, a__topright.mask, a__right.mask, a__bottomright.mask,
              a__bottom.mask, a__bottomleft.mask, a__left.mask])
@@ -179,25 +179,32 @@ def comp_r(dert__, fig, root_fcr):
                      m__
                      ))
 
-def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
+def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
 
     dert__ = shape_check(dert__)  # remove derts of incomplete kernels
-
-    g__, dy__, dx__ = dert__[[3, 4, 5]]  # g, dy, dx -> local i, idy, idx
+    if flag:
+        g__, dy__, dx__ = dert__[[3, 4, 5]]  # g, dy, dx -> local i, idy, idx
+    else:
+        g__, dy__, dx__ = dert__[[1, 2, 3]]
 
     g0__, dy0__, dx0__ = g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1]  # top left
     g1__, dy1__, dx1__ = g__[:-1, 1:],  dy__[:-1, 1:],  dx__[:-1, 1:]   # top right
     g2__, dy2__, dx2__ = g__[1:, 1:],   dy__[1:, 1:],   dx__[1:, 1:]    # bottom right
     g3__, dy3__, dx3__ = g__[1:, :-1],  dy__[1:, :-1],  dx__[1:, :-1]   # bottom left
 
-    g0__.mask, g1__.mask, g2__.mask, g3__.mask = \
-        mask_AND([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
-    dy0__.mask = dx0__.mask = dy1__.mask = dx1__.mask = dy2__.mask = dx2__.mask = dy3__.mask = dx3__.mask = g0__.mask
+    g0__.mask  = mask_AND([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
+    dy0__.mask = mask_AND([dy0__.mask, dy1__.mask, dy2__.mask, dy3__.mask])
+    dx0__.mask = mask_AND([dx0__.mask, dx1__.mask, dx2__.mask, dx3__.mask])
+
+    g1__.mask = g2__.mask = g3__.mask = g0__.mask
+    dy1__.mask = dy2__.mask = dy3__.mask = dy0__.mask
+    dx1__.mask = dx2__.mask = dx3__.mask = dx0__.mask
 
     sin0__ = dy0__ / g0__;  cos0__ = dx0__ / g0__
     sin1__ = dy1__ / g1__;  cos1__ = dx1__ / g1__
     sin2__ = dy2__ / g2__;  cos2__ = dx2__ / g2__
     sin3__ = dy3__ / g3__;  cos3__ = dx3__ / g3__
+
     '''
     cosine of difference between diagonally opposed angles, in vector representation
     print(cos_da1__.shape, type(cos_da1__))
@@ -274,13 +281,11 @@ def mask_OR(list_or_arrays):
 
 
 def mask_AND(list_of_arrays):
-
     # sum of masks converted into int
     res = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
     # mask if more than 1 input is masked
     mask = res > 1
-    list_of_arrays[:] = mask
-    return list_of_arrays
+    return mask
 
 
 
