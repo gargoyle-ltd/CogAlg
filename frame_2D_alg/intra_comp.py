@@ -280,7 +280,8 @@ def mask_AND(list_of_arrays):
     res = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
     # mask if more than 1 input is masked
     mask = res > 1
-    return mask
+    list_of_arrays[:] = mask
+    return list_of_arrays
 
 
 
