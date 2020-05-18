@@ -273,6 +273,36 @@ def mask_OR(list_or_arrays):
     return list_or_arrays
 
 
+def mask_np_OR(list_of_arrays):
+    if len(list_of_arrays) == 4:
+        array_1 = np.logical_or(list_of_arrays[0], list_of_arrays[1])
+        array_2 = np.logical_or(list_of_arrays[2], list_of_arrays[3])
+
+        result = np.logical_or(array_1, array_2)
+        list_of_arrays[:] = result
+
+
+    if len(list_of_arrays) == 9:
+        # compair input arrays in pairs
+        array_01 = np.logical_or(list_of_arrays[1], list_of_arrays[2])
+        array_02 = np.logical_or(list_of_arrays[3], list_of_arrays[4])
+        array_03 = np.logical_or(list_of_arrays[5], list_of_arrays[6])
+        array_04 = np.logical_or(list_of_arrays[7], list_of_arrays[8])
+
+        # compare arrays of pairs
+        array_1 = np.logical_or(array_01, array_02)
+        array_2 = np.logical_or(array_03, array_04)
+
+        result = np.logical_or(array_1, array_2)
+
+        # compare to center
+        result = np.logical_or(list_of_arrays[0], result)
+
+        list_of_arrays[:] = result
+
+    return list_of_arrays
+
+
 def mask_projection(list_of_arrays):
     # top_left, top_right, bottom_right, bottom_left
 
