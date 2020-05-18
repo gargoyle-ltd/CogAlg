@@ -4,6 +4,7 @@ Cross-comparison of pixels or gradients, in 2x2 or 3x3 kernels
 
 import numpy as np
 import numpy.ma as ma
+import functools
 
 # Sobel coefficients to decompose ds into dy and dx:
 
@@ -271,6 +272,17 @@ def mask_OR(list_or_arrays):
                         list_or_arrays[6][:][y][x] = list_or_arrays[7][:][y][x] = list_or_arrays[8][:][y][x] = True
 
     return list_or_arrays
+
+
+def mask_AND(list_of_arrays):
+
+    # sum of masks converted into int
+    res = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
+    # mask if more than 1 input is masked
+    mask = res > 1
+    return mask
+
+
 
 
 def mask_np_OR(list_of_arrays):
