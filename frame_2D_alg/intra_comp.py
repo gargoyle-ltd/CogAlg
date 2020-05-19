@@ -52,7 +52,7 @@ def comp_r(dert__, fig, root_fcr):
 
     i__center.mask = i__topleft.mask = i__top.mask = i__topright.mask = i__right.mask = i__bottomright.mask = i__bottom.mask= \
     i__bottomleft.mask = i__left.mask = \
-        mask_AND(
+        mask_SUM(
         [i__center.mask, i__topleft.mask, i__top.mask, i__topright.mask, i__right.mask, i__bottomright.mask,
          i__bottom.mask, i__bottomleft.mask, i__left.mask])
 
@@ -116,7 +116,7 @@ def comp_r(dert__, fig, root_fcr):
 
         a__center.mask = a__topleft.mask = a__top.mask = a__topright.mask = a__right.mask = a__bottomright.mask = \
         a__bottom.mask = a__bottomleft.mask = a__left.mask = \
-            mask_AND(
+            mask_SUM(
             [a__center.mask, a__topleft.mask, a__top.mask, a__topright.mask, a__right.mask, a__bottomright.mask,
              a__bottom.mask, a__bottomleft.mask, a__left.mask])
 
@@ -192,7 +192,7 @@ def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma
     g2__, dy2__, dx2__ = g__[1:, 1:],   dy__[1:, 1:],   dx__[1:, 1:]    # bottom right
     g3__, dy3__, dx3__ = g__[1:, :-1],  dy__[1:, :-1],  dx__[1:, :-1]   # bottom left
 
-    mask_1 = mask_AND([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
+    mask_1 = mask_SUM([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
 
     # replace 0 values with 1, and add mask defined before
     # need to initialize every array without mask first to replace values with new mask
@@ -296,7 +296,7 @@ def shape_check(dert__):
     return dert__
 
 
-def mask_AND(list_of_arrays):
+def mask_SUM(list_of_arrays):
     # sum of masks converted into int
     res = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
     # mask if more than 1 input is masked
