@@ -200,6 +200,19 @@ def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma
     dy1__.mask = dy2__.mask = dy3__.mask = dy0__.mask
     dx1__.mask = dx2__.mask = dx3__.mask = dx0__.mask
 
+    # replace 0 values with 1, and add mask defined before
+    g0__ = ma.where(g0__== 0, 1, g0__)
+    g0__.mask = dx0__.mask
+
+    g1__ = ma.where(g1__ == 0, 1, g1__)
+    g1__.mask = dx1__.mask
+
+    g2__ = ma.where(g2__ == 0, 1, g2__)
+    g2__.mask = dx2__.mask
+
+    g3__ = ma.where(g3__ == 0, 1, g3__)
+    g3__.mask = dx3__.mask
+
     sin0__ = dy0__ / g0__;  cos0__ = dx0__ / g0__
     sin1__ = dy1__ / g1__;  cos1__ = dx1__ / g1__
     sin2__ = dy2__ / g2__;  cos2__ = dx2__ / g2__
@@ -248,6 +261,13 @@ def shape_check(dert__):
     return dert__
 
 
+def mask_AND(list_of_arrays):
+    # sum of masks converted into int
+    res = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
+    # mask if more than 1 input is masked
+    mask = res > 1
+    return mask
+
 def normalization(array):
     start = 1
     end = 255
@@ -279,13 +299,6 @@ def mask_OR(list_or_arrays):
 
     return list_or_arrays
 
-
-def mask_AND(list_of_arrays):
-    # sum of masks converted into int
-    res = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
-    # mask if more than 1 input is masked
-    mask = res > 1
-    return mask
 
 
 
