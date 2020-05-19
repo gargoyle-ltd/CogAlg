@@ -192,31 +192,64 @@ def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma
     g2__, dy2__, dx2__ = g__[1:, 1:],   dy__[1:, 1:],   dx__[1:, 1:]    # bottom right
     g3__, dy3__, dx3__ = g__[1:, :-1],  dy__[1:, :-1],  dx__[1:, :-1]   # bottom left
 
-    g0__.mask  = mask_AND([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
-    dy0__.mask = mask_AND([dy0__.mask, dy1__.mask, dy2__.mask, dy3__.mask])
-    dx0__.mask = mask_AND([dx0__.mask, dx1__.mask, dx2__.mask, dx3__.mask])
-
-    g1__.mask = g2__.mask = g3__.mask = g0__.mask
-    dy1__.mask = dy2__.mask = dy3__.mask = dy0__.mask
-    dx1__.mask = dx2__.mask = dx3__.mask = dx0__.mask
+    mask_1 = mask_AND([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
 
     # replace 0 values with 1, and add mask defined before
+    # need to initialize every array without mask first to replace values with new mask
     g0__ = ma.where(g0__== 0, 1, g0__)
-    g0__.mask = dx0__.mask
+    g0__.mask = mask_1
+    dy0__ = ma.where(dy0__== 0, 0, dy0__)
+    dy0__.mask = mask_1
+    dx0__ = ma.where(dx0__== 0, 0, dx0__)
+    dx0__.mask = mask_1
 
     g1__ = ma.where(g1__ == 0, 1, g1__)
-    g1__.mask = dx1__.mask
+    g1__.mask = mask_1
+    dy1__ = ma.where(dy1__== 0, 0, dy1__)
+    dy1__.mask = mask_1
+    dx1__ = ma.where(dx1__== 0, 0, dx1__)
+    dx1__.mask = mask_1
 
     g2__ = ma.where(g2__ == 0, 1, g2__)
-    g2__.mask = dx2__.mask
+    g2__.mask = mask_1
+    dy2__ = ma.where(dy2__== 0, 0, dy2__)
+    dy2__.mask = mask_1
+    dx2__ = ma.where(dx2__== 0, 0, dx2__)
+    dx2__.mask = mask_1
 
     g3__ = ma.where(g3__ == 0, 1, g3__)
-    g3__.mask = dx3__.mask
+    g3__.mask = mask_1
+    dy3__ = ma.where(dy3__== 0, 0, dy3__)
+    dy3__.mask = mask_1
+    dx3__ = ma.where(dx3__== 0, 0, dx3__)
+    dx3__.mask = mask_1
+
 
     sin0__ = dy0__ / g0__;  cos0__ = dx0__ / g0__
     sin1__ = dy1__ / g1__;  cos1__ = dx1__ / g1__
     sin2__ = dy2__ / g2__;  cos2__ = dx2__ / g2__
     sin3__ = dy3__ / g3__;  cos3__ = dx3__ / g3__
+
+    '''for i in range(len(sin0__)):
+        for j in range(len(sin0__[i])):
+            if not sin0__.mask[i][j] == sin1__.mask[i][j] == sin2__.mask[i][j] == sin3__.mask[i][j]:
+                print(
+                    '\n0', sin0__[i][j], cos0__[i][j], dy0__[i][j], dx0__[i][j], g0__[i][j],
+                    '\n0', sin0__.mask[i][j], cos0__.mask[i][j], dy0__.mask[i][j], dx0__.mask[i][j], g0__.mask[i][j],
+                    '\n-----------------------',
+
+                    '\n1', sin1__[i][j], cos1__[i][j], dy1__[i][j], dx1__[i][j], g1__[i][j],
+                    '\n1', sin1__.mask[i][j], cos1__.mask[i][j], dy1__.mask[i][j], dx1__.mask[i][j], g1__.mask[i][j],
+                    '\n-----------------------',
+
+                    '\n2', sin2__[i][j], cos2__[i][j], dy2__[i][j], dx2__[i][j], g2__[i][j],
+                    '\n2', sin2__.mask[i][j], cos2__.mask[i][j], dy2__.mask[i][j], dx2__.mask[i][j], g2__.mask[i][j],
+                    '\n-----------------------',
+
+                    '\n3', sin3__[i][j], cos3__[i][j], dy3__[i][j], dx3__[i][j], g3__[i][j],
+                    '\n3', sin3__.mask[i][j], cos3__.mask[i][j], dy3__.mask[i][j], dx3__.mask[i][j], g3__.mask[i][j]
+                )
+                print('_____________________________________________________')'''
 
     '''
     cosine of difference between diagonally opposed angles, in vector representation
@@ -241,6 +274,7 @@ def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma
     next comp_rg will use g, dy, dx     
     next comp_gg will use gg, dgy, dgx  
     '''
+
     return  ma.stack((g__ [:-1, :-1],  # remove last row and column to align with derived params
                       dy__[:-1, :-1],
                       dx__[:-1, :-1],  # -> idy, idx to compute cos for comp rg
@@ -249,6 +283,7 @@ def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma
                       dgx__,
                       mg__
                       ))
+
 
 def shape_check(dert__):
     # remove derts of 2x2 kernels that are missing some other derts
