@@ -47,14 +47,18 @@ def comp_r(dert__, fig, root_fcr):
     i__bottom =      i__[2::2, 1:-1:2]
     i__bottomleft =  i__[2::2, :-2:2]
     i__left =        i__[1:-1:2, :-2:2]
-
-    idy__, idx__ = dert__[[1, 2]]
-
+    ''' 
+    mask ORing to align masks of outputs from operations that don't have common inputs
+    (could be replaced with mask_SUM, but it's not necessary in comp_r)
+    not needed if fig: all operations include center, so all masks are ORed with center.mask? 
+    '''
     i__center.mask = i__topleft.mask = i__top.mask = i__topright.mask = i__right.mask = i__bottomright.mask = i__bottom.mask= \
     i__bottomleft.mask = i__left.mask = \
-        mask_SUM(
-        [i__center.mask, i__topleft.mask, i__top.mask, i__topright.mask, i__right.mask, i__bottomright.mask,
-         i__bottom.mask, i__bottomleft.mask, i__left.mask])
+    functools.reduce(np.logical_or, (i__center, i__topleft, i__top,
+                                     i__topright, i__right, i__bottomright,
+                                     i__bottom, i__bottomleft, i__left ))
+
+    idy__, idx__ = dert__[[1, 2]]
 
     if root_fcr:  # root fork is comp_r, accumulate derivatives:
 
@@ -100,6 +104,7 @@ def comp_r(dert__, fig, root_fcr):
     else:  # fig is TRUE, compare angle and then magnitude of 8 center-rim pairs
         # replace float with int
 
+        i__[np.where(i__ == 0)] = .001  # 1 if int
         a__ = [idy__, idx__] / i__  # sin, cos;  i = ig
         '''
         sparse aligned a__center and a__rim arrays:
@@ -114,12 +119,11 @@ def comp_r(dert__, fig, root_fcr):
         a__bottomleft =  a__[:, 2::2, :-2:2]
         a__left =        a__[:, 1:-1:2, :-2:2]
 
-        a__center.mask = a__topleft.mask = a__top.mask = a__topright.mask = a__right.mask = a__bottomright.mask = \
-        a__bottom.mask = a__bottomleft.mask = a__left.mask = \
-            mask_SUM(
-            [a__center.mask, a__topleft.mask, a__top.mask, a__topright.mask, a__right.mask, a__bottomright.mask,
-             a__bottom.mask, a__bottomleft.mask, a__left.mask])
-
+        a__center.mask = a__topleft.mask = a__top.mask = a__topright.mask = a__right.mask = a__bottomright.mask = a__bottom.mask = \
+        a__bottomleft.mask = a__left.mask = \
+        functools.reduce(np.logical_or, (a__center, a__topleft, a__top,
+                                         a__topright, a__right, a__bottomright,
+                                         a__bottom, a__bottomleft, a__left))  # mask ORing for consistency
         '''
         8-tuple of differences between center dert angle and rim dert angle:
         '''
@@ -166,90 +170,64 @@ def comp_r(dert__, fig, root_fcr):
             accumulate in prior-rng (3x3 -> 5x5 -> 9x9) dy, dx
             '''
         g__ = np.hypot(dy__, dx__)
+
+        idy__ = idy__[1:-1:2, 1:-1:2]  # i__center.shape
+        idx__ = idx__[1:-1:2, 1:-1:2]  # i__center.shape
+        idy__.mask = idx__.mask = i__center.mask  # align shifted masks
     '''
     next comp_r will use full dert       
     next comp_g will use g__, dy__, dx__
     '''
-    return ma.stack((i__center,
-                     idy__[1:-1:2, 1:-1:2],  # i__center.shape
-                     idx__[1:-1:2, 1:-1:2],  # i__center.shape
-                     g__,
-                     dy__,
-                     dx__,
-                     m__
-                     ))
+    return ma.stack((i__center, idy__, idx__, g__, dy__, dx__, m__))
 
-def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
+
+def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
 
     dert__ = shape_check(dert__)  # remove derts of incomplete kernels
-    if flag:
-        g__, dy__, dx__ = dert__[[3, 4, 5]]  # g, dy, dx -> local i, idy, idx
-    else:
-        g__, dy__, dx__ = dert__[[1, 2, 3]]
+
+    g__, dy__, dx__ = dert__[[3, 4, 5]]  # g, dy, dx -> local i, idy, idx
 
     g0__, dy0__, dx0__ = g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1]  # top left
     g1__, dy1__, dx1__ = g__[:-1, 1:],  dy__[:-1, 1:],  dx__[:-1, 1:]   # top right
     g2__, dy2__, dx2__ = g__[1:, 1:],   dy__[1:, 1:],   dx__[1:, 1:]    # bottom right
     g3__, dy3__, dx3__ = g__[1:, :-1],  dy__[1:, :-1],  dx__[1:, :-1]   # bottom left
 
-    mask_1 = mask_SUM([g0__.mask, g1__.mask, g2__.mask, g3__.mask])
+    mask_1  = mask_SUM( [g0__.mask, g1__.mask, g2__.mask, g3__.mask])
 
-    # replace 0 values with 1, and add mask defined before
+    # replace 0 values with 1, re-insert mask
     # need to initialize every array without mask first to replace values with new mask
-    g0__ = ma.where(g0__== 0, 1, g0__)
+    g0__ = ma.where(g0__ == 0, 1, g0__)
     g0__.mask = mask_1
-    dy0__ = ma.where(dy0__== 0, 0, dy0__)
+    dy0__ = ma.where(dy0__ == 0, 0, dy0__)
     dy0__.mask = mask_1
-    dx0__ = ma.where(dx0__== 0, 0, dx0__)
+    dx0__ = ma.where(dx0__ == 0, 0, dx0__)
     dx0__.mask = mask_1
 
     g1__ = ma.where(g1__ == 0, 1, g1__)
     g1__.mask = mask_1
-    dy1__ = ma.where(dy1__== 0, 0, dy1__)
+    dy1__ = ma.where(dy1__ == 0, 0, dy1__)
     dy1__.mask = mask_1
-    dx1__ = ma.where(dx1__== 0, 0, dx1__)
+    dx1__ = ma.where(dx1__ == 0, 0, dx1__)
     dx1__.mask = mask_1
 
     g2__ = ma.where(g2__ == 0, 1, g2__)
     g2__.mask = mask_1
-    dy2__ = ma.where(dy2__== 0, 0, dy2__)
+    dy2__ = ma.where(dy2__ == 0, 0, dy2__)
     dy2__.mask = mask_1
-    dx2__ = ma.where(dx2__== 0, 0, dx2__)
+    dx2__ = ma.where(dx2__ == 0, 0, dx2__)
     dx2__.mask = mask_1
 
     g3__ = ma.where(g3__ == 0, 1, g3__)
     g3__.mask = mask_1
-    dy3__ = ma.where(dy3__== 0, 0, dy3__)
+    dy3__ = ma.where(dy3__ == 0, 0, dy3__)
     dy3__.mask = mask_1
-    dx3__ = ma.where(dx3__== 0, 0, dx3__)
+    dx3__ = ma.where(dx3__ == 0, 0, dx3__)
     dx3__.mask = mask_1
-
 
     sin0__ = dy0__ / g0__;  cos0__ = dx0__ / g0__
     sin1__ = dy1__ / g1__;  cos1__ = dx1__ / g1__
     sin2__ = dy2__ / g2__;  cos2__ = dx2__ / g2__
     sin3__ = dy3__ / g3__;  cos3__ = dx3__ / g3__
-
-    '''for i in range(len(sin0__)):
-        for j in range(len(sin0__[i])):
-            if not sin0__.mask[i][j] == sin1__.mask[i][j] == sin2__.mask[i][j] == sin3__.mask[i][j]:
-                print(
-                    '\n0', sin0__[i][j], cos0__[i][j], dy0__[i][j], dx0__[i][j], g0__[i][j],
-                    '\n0', sin0__.mask[i][j], cos0__.mask[i][j], dy0__.mask[i][j], dx0__.mask[i][j], g0__.mask[i][j],
-                    '\n-----------------------',
-
-                    '\n1', sin1__[i][j], cos1__[i][j], dy1__[i][j], dx1__[i][j], g1__[i][j],
-                    '\n1', sin1__.mask[i][j], cos1__.mask[i][j], dy1__.mask[i][j], dx1__.mask[i][j], g1__.mask[i][j],
-                    '\n-----------------------',
-
-                    '\n2', sin2__[i][j], cos2__[i][j], dy2__[i][j], dx2__[i][j], g2__[i][j],
-                    '\n2', sin2__.mask[i][j], cos2__.mask[i][j], dy2__.mask[i][j], dx2__.mask[i][j], g2__.mask[i][j],
-                    '\n-----------------------',
-
-                    '\n3', sin3__[i][j], cos3__[i][j], dy3__[i][j], dx3__[i][j], g3__[i][j],
-                    '\n3', sin3__.mask[i][j], cos3__.mask[i][j], dy3__.mask[i][j], dx3__.mask[i][j], g3__.mask[i][j]
-                )
-                print('_____________________________________________________')'''
 
     '''
     cosine of difference between diagonally opposed angles, in vector representation
@@ -270,19 +248,16 @@ def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma
     mg1__ = np.minimum(g1__, g3__) * cos_da1__
     mg__  = mg0__ + mg1__
 
+    g__ = g__[:-1, :-1]  # remove last row and column to align with derived params
+    dy__= dy__[:-1, :-1]
+    dx__= dx__[:-1, :-1]  # -> idy, idx to compute cos for comp rg
+    g__.mask = dy__.mask = dx__.mask = gg__.mask
+
     '''
     next comp_rg will use g, dy, dx     
     next comp_gg will use gg, dgy, dgx  
     '''
-
-    return  ma.stack((g__ [:-1, :-1],  # remove last row and column to align with derived params
-                      dy__[:-1, :-1],
-                      dx__[:-1, :-1],  # -> idy, idx to compute cos for comp rg
-                      gg__,
-                      dgy__,
-                      dgx__,
-                      mg__
-                      ))
+    return  ma.stack((g__, dy__, dx__, gg__, dgy__, dgx__, mg__))
 
 
 def shape_check(dert__):
@@ -296,13 +271,6 @@ def shape_check(dert__):
     return dert__
 
 
-def mask_SUM(list_of_arrays):
-    # sum of masks converted into int
-    res = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
-    # mask if more than 1 input is masked
-    mask = res > 1
-    return mask
-
 def normalization(array):
     start = 1
     end = 255
@@ -311,82 +279,18 @@ def normalization(array):
     return res
 
 
-def mask_OR(list_or_arrays):
-    # for comp_g
-    if len(list_or_arrays) == 4:
-        for y in range(len(list_or_arrays[0])):
-            for x in range(len(list_or_arrays[0][y])):
-                if list_or_arrays[0][y][x] or list_or_arrays[1][y][x] or \
-                        list_or_arrays[2][y][x] or list_or_arrays[3][y][x]:
-                    list_or_arrays[0][y][x] = list_or_arrays[1][y][x] = \
-                        list_or_arrays[2][y][x] = list_or_arrays[3][y][x] = True
+def mask_SUM(list_of_arrays):  # sum of masks converted to int
 
-    # for comp_r
-    if len(list_or_arrays) == 9:
-        for y in range(len(list_or_arrays[0][0])):
-            for x in range(len(list_or_arrays[0][0][y])):
-                if list_or_arrays[0][0][y][x] or list_or_arrays[1][0][y][x] or list_or_arrays[2][0][y][x] or \
-                        list_or_arrays[3][0][y][x] or list_or_arrays[4][0][y][x] or list_or_arrays[5][0][y][x] or \
-                        list_or_arrays[6][0][y][x] or list_or_arrays[7][0][y][x] or list_or_arrays[8][0][y][x]:
-                    list_or_arrays[0][:][y][x] = list_or_arrays[1][:][y][x] = list_or_arrays[2][:][y][x] = \
-                        list_or_arrays[3][:][y][x] = list_or_arrays[4][:][y][x] = list_or_arrays[5][:][y][x] = \
-                        list_or_arrays[6][:][y][x] = list_or_arrays[7][:][y][x] = list_or_arrays[8][:][y][x] = True
+    sum = functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), list_of_arrays)
+    mask = sum > 1  # mask output if more than 1 input is masked
 
-    return list_or_arrays
-
-
-
-
-
-def mask_np_OR(list_of_arrays):
-    if len(list_of_arrays) == 4:
-        array_1 = np.logical_or(list_of_arrays[0], list_of_arrays[1])
-        array_2 = np.logical_or(list_of_arrays[2], list_of_arrays[3])
-
-        result = np.logical_or(array_1, array_2)
-        list_of_arrays[:] = result
-
-
-    if len(list_of_arrays) == 9:
-        # compair input arrays in pairs
-        array_01 = np.logical_or(list_of_arrays[1], list_of_arrays[2])
-        array_02 = np.logical_or(list_of_arrays[3], list_of_arrays[4])
-        array_03 = np.logical_or(list_of_arrays[5], list_of_arrays[6])
-        array_04 = np.logical_or(list_of_arrays[7], list_of_arrays[8])
-
-        # compare arrays of pairs
-        array_1 = np.logical_or(array_01, array_02)
-        array_2 = np.logical_or(array_03, array_04)
-
-        result = np.logical_or(array_1, array_2)
-
-        # compare to center
-        result = np.logical_or(list_of_arrays[0], result)
-
-        list_of_arrays[:] = result
-
-    return list_of_arrays
-
-
-def mask_projection(list_of_arrays):
-    # top_left, top_right, bottom_right, bottom_left
-
-    for y in range(len(list_of_arrays[0])):
-        for x in range(len(list_of_arrays[0][y])):
-            if [list_of_arrays[0].mask[y][x], list_of_arrays[1].mask[y][x], list_of_arrays[2].mask[y][x],
-                    list_of_arrays[3].mask[y][x]].count(True) == 1:
-
-                    if list_of_arrays[0].mask[y][x] == True:
-                        list_of_arrays[0][y][x] = list_of_arrays[2][y][x] / 2
-                        list_of_arrays[0].mask[y][x] = list_of_arrays[1].mask[y][x] = \
-                            list_of_arrays[2].mask[y][x] = list_of_arrays[3].mask[y][x] = False
-
-                    elif list_of_arrays[3].mask[y][x] == True:
-                        list_of_arrays[3][y][x] = list_of_arrays[1][y][x] / 2
-                        list_of_arrays[0].mask[y][x] = list_of_arrays[1].mask[y][x] = \
-                            list_of_arrays[2].mask[y][x] = list_of_arrays[3].mask[y][x] = False
-                    else:
-                        list_of_arrays[0].mask[y][x] = list_of_arrays[1].mask[y][x] = \
-                            list_of_arrays[2].mask[y][x] = list_of_arrays[3].mask[y][x] = True
-
-    return list_of_arrays
+    return mask
+'''
+Unpack in code:
+a__center.mask = a__topleft.mask = a__top.mask = a__topright.mask = a__right.mask = a__bottomright.mask = \
+a__bottom.mask = a__bottomleft.mask = a__left.mask = \
+functools.reduce(lambda x1, x2: x1.astype('int') + x2.astype('int'), 
+                 [a__center.mask, a__topleft.mask, a__top.mask, a__topright.mask, a__right.mask, 
+                  a__bottomright.mask, a__bottom.mask, a__bottomleft.mask, a__left.mask]
+                 ) > 1
+'''
