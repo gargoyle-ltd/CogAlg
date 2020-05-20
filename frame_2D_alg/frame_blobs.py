@@ -1,6 +1,5 @@
 from time import time
 from collections import deque, defaultdict
-import numpy as np
 from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
 from CogAlg.frame_2D_alg.utils import *
 

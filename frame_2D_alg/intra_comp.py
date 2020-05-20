@@ -47,16 +47,30 @@ def comp_r(dert__, fig, root_fcr):
     i__bottom =      i__[2::2, 1:-1:2]
     i__bottomleft =  i__[2::2, :-2:2]
     i__left =        i__[1:-1:2, :-2:2]
-    ''' 
-    mask ORing to align masks of outputs from operations that don't have common inputs
-    (could be replaced with mask_SUM, but it's not necessary in comp_r)
-    not needed if fig: all operations include center, so all masks are ORed with center.mask? 
-    '''
-    i__center.mask = i__topleft.mask = i__top.mask = i__topright.mask = i__right.mask = i__bottomright.mask = i__bottom.mask= \
-    i__bottomleft.mask = i__left.mask = \
-    functools.reduce(np.logical_or, (i__center, i__topleft, i__top,
-                                     i__topright, i__right, i__bottomright,
-                                     i__bottom, i__bottomleft, i__left ))
+
+    mask_i = mask_SUM([i__center.mask, i__topleft.mask, i__top.mask,
+                       i__topright.mask, i__right.mask, i__bottomright.mask,
+                       i__bottom.mask, i__bottomleft.mask, i__left.mask])
+
+    i__center = ma.where(i__center == 0, 1, i__center)
+    i__topleft = ma.where(i__topleft == 0, 1, i__topleft)
+    i__top = ma.where(i__top == 0, 1, i__top)
+    i__topright = ma.where(i__topright == 0, 1, i__topright)
+    i__right = ma.where(i__right == 0, 1, i__right)
+    i__bottomright = ma.where(i__bottomright == 0, 1, i__bottomright)
+    i__bottom = ma.where(i__bottom == 0, 1, i__bottom)
+    i__bottomleft = ma.where(i__bottomleft == 0, 1, i__bottomleft)
+    i__left = ma.where(i__left == 0, 1, i__left)
+
+    i__center.mask = mask_i
+    i__topleft.mask = mask_i
+    i__top.mask = mask_i
+    i__topright.mask = mask_i
+    i__right.mask = mask_i
+    i__bottomright.mask = mask_i
+    i__bottom.mask = mask_i
+    i__bottomleft.mask = mask_i
+    i__left.mask = mask_i
 
     idy__, idx__ = dert__[[1, 2]]
 
@@ -68,19 +82,23 @@ def comp_r(dert__, fig, root_fcr):
         m__  =  m__[1:-1:2, 1:-1:2]
         dy__.mask = dx__.mask = m__.mask = i__center.mask
 
+
     else:   # root fork is comp_g or comp_pixel, initialize sparse derivatives:
 
-        dy__ = np.zeros((i__center.shape[0], i__center.shape[1]))  # row, column
-        dx__ = np.zeros((i__center.shape[0], i__center.shape[1]))
-        m__ = np.zeros((i__center.shape[0], i__center.shape[1]))
+        #need to be initialized as masked arrays
+        dy__ = ma.zeros((i__center.shape[0], i__center.shape[1]))  # row, column
+        dx__ = ma.zeros((i__center.shape[0], i__center.shape[1]))
+        m__ = ma.zeros((i__center.shape[0], i__center.shape[1]))
 
     if not fig:  # compare four diametrically opposed pairs of rim pixels:
-
         dt__ = np.stack((i__topleft - i__bottomright,
                          i__top - i__bottom,
                          i__topright - i__bottomleft,
                          i__right - i__left
                          ))
+
+        # initializing mask for dt to avoid issue with single value in .mask instead of array of values
+        dt__.mask = mask_i
         for d__, YCOEF, XCOEF in zip(dt__, YCOEFs[:4], XCOEFs[:4]):
 
             dy__ += d__ * YCOEF  # decompose differences into dy and dx,
@@ -119,11 +137,30 @@ def comp_r(dert__, fig, root_fcr):
         a__bottomleft =  a__[:, 2::2, :-2:2]
         a__left =        a__[:, 1:-1:2, :-2:2]
 
-        a__center.mask = a__topleft.mask = a__top.mask = a__topright.mask = a__right.mask = a__bottomright.mask = a__bottom.mask = \
-        a__bottomleft.mask = a__left.mask = \
-        functools.reduce(np.logical_or, (a__center, a__topleft, a__top,
-                                         a__topright, a__right, a__bottomright,
-                                         a__bottom, a__bottomleft, a__left))  # mask ORing for consistency
+        mask_a = mask_SUM([a__center.mask, a__topleft.mask, a__top.mask,
+                                         a__topright.mask, a__right.mask, a__bottomright.mask,
+                                         a__bottom.mask, a__bottomleft.mask, a__left.mask])
+
+        a__center = ma.where(a__center == 0, 1, a__center)
+        a__topleft = ma.where(a__topleft == 0, 1, a__topleft)
+        a__top = ma.where(a__top == 0, 1, a__top)
+        a__topright = ma.where(a__topright == 0, 1, a__topright)
+        a__right = ma.where(a__right == 0, 1, a__right)
+        a__bottomright = ma.where(a__bottomright == 0, 1, a__bottomright)
+        a__bottom = ma.where(a__bottom == 0, 1, a__bottom)
+        a__bottomleft = ma.where(a__bottomleft == 0, 1, a__bottomleft)
+        a__left = ma.where(a__left == 0, 1, a__left)
+
+        a__center.mask = mask_a
+        a__topleft.mask = mask_a
+        a__top.mask = mask_a
+        a__topright.mask = mask_a
+        a__right.mask = mask_a
+        a__bottomright.mask = mask_a
+        a__bottom.mask = mask_a
+        a__bottomleft.mask = mask_a
+        a__left.mask = mask_a
+
         '''
         8-tuple of differences between center dert angle and rim dert angle:
         '''
@@ -162,6 +199,9 @@ def comp_r(dert__, fig, root_fcr):
                          (i__center - i__left        * cos_da[7])
                          ))
 
+        # initializing mask for dt to avoid issue with single value in .mask instead of array of values
+        dt__.mask = mask_i
+
         for d__, YCOEF, XCOEF in zip(dt__, YCOEFs, XCOEFs):
 
             dy__ += d__ * YCOEF  # decompose differences into dy and dx,
@@ -171,21 +211,28 @@ def comp_r(dert__, fig, root_fcr):
             '''
         g__ = np.hypot(dy__, dx__)
 
-        idy__ = idy__[1:-1:2, 1:-1:2]  # i__center.shape
-        idx__ = idx__[1:-1:2, 1:-1:2]  # i__center.shape
-        idy__.mask = idx__.mask = i__center.mask  # align shifted masks
+    idy__ = idy__[1:-1:2, 1:-1:2]  # i__center.shape
+    idx__ = idx__[1:-1:2, 1:-1:2]  # i__center.shape
+    idy__.mask = mask_i
+    idx__.mask = mask_i  # align shifted masks
+
     '''
     next comp_r will use full dert       
     next comp_g will use g__, dy__, dx__
     '''
+
     return ma.stack((i__center, idy__, idx__, g__, dy__, dx__, m__))
 
 
-def comp_g(dert__):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
+def comp_g(dert__, flag):  # cross-comp of g in 2x2 kernels, between derts in ma.stack dert__
 
     dert__ = shape_check(dert__)  # remove derts of incomplete kernels
 
-    g__, dy__, dx__ = dert__[[3, 4, 5]]  # g, dy, dx -> local i, idy, idx
+    if len(dert__) > 5: # we still need something to show if it`s the first call comp_g
+        g__, dy__, dx__ = dert__[[3, 4, 5]]  # g, dy, dx -> local i, idy, idx
+    else:
+        g__, dy__, dx__ = dert__[[1, 2, 3]]
+
 
     g0__, dy0__, dx0__ = g__[:-1, :-1], dy__[:-1, :-1], dx__[:-1, :-1]  # top left
     g1__, dy1__, dx1__ = g__[:-1, 1:],  dy__[:-1, 1:],  dx__[:-1, 1:]   # top right
