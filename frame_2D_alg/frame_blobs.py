@@ -1,6 +1,6 @@
 from time import time
 from collections import deque, defaultdict
-from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
+#from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
 from CogAlg.frame_2D_alg.utils import *
 
 '''
@@ -56,7 +56,7 @@ def comp_pixel(image):  # current version of 2x2 pixel cross-correlation within 
 
     dy__ = ((botleft__ + botright__) - (topleft__ + topright__))  # same as diagonal from left
     dx__ = ((topright__ + botright__) - (topleft__ + botleft__))  # same as diagonal from right
-    g__ = np.hypot(dy__, dx__)  # gradient per kernel
+    g__ = np.hypot(dy__, dx__).astype('int')  # gradient per kernel
 
     return ma.stack((topleft__, g__, dy__, dx__))
 
