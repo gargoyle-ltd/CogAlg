@@ -1,7 +1,9 @@
 from time import time
 from collections import deque, defaultdict
-from CogAlg.frame_2D_alg.comp_pixel import comp_pixel
-from CogAlg.frame_2D_alg.utils import *
+import numpy as np
+from copy import copy
+# from comp_pixel import comp_pixel
+from utils import *
 
 '''
     2D version of first-level core algorithm will have frame_blobs, intra_blob (recursive search within blobs), and comp_P.
@@ -34,21 +36,17 @@ from CogAlg.frame_2D_alg.utils import *
     predictive on a blob level, and should be cross-compared between blobs on the next level of search and composition.
     Please see diagrams of frame_blobs on https://kwcckw.github.io/CogAlg/
 '''
-# Adjustable parameters:
 
-kwidth = 3  # smallest input-centered kernel: frame | blob shrink by 2 pixels per row
 ave = 30  # filter or hyper-parameter, set as a guess, latter adjusted by feedback
 
-# ----------------------------------------------------------------------------------------------------------------------------------------
-# Functions
 
+# Functions
 # prefix '_' denotes higher-line variable or structure, vs. same-type lower-line variable or structure
 # postfix '_' denotes array name, vs. same-name elements of that array
 
-
 def comp_pixel(image):  # current version of 2x2 pixel cross-correlation within image
 
-    # following four slices provide inputs to a sliding 2x2 kernel:
+    # input slices to a sliding 2x2 kernel:
     topleft__ = image[:-1, :-1]
     topright__ = image[:-1, 1:]
     botleft__ = image[1:, :-1]
@@ -62,7 +60,6 @@ def comp_pixel(image):  # current version of 2x2 pixel cross-correlation within 
 
 
 def image_to_blobs(image):
-
     dert__ = comp_pixel(image)  # 2x2 cross-comparison / cross-correlation
 
     frame = dict(rng=1, dert__=dert__, mask=None, I=0, G=0, Dy=0, Dx=0, blob__=[])
@@ -72,14 +69,15 @@ def image_to_blobs(image):
     for y in range(height):  # first and last row are discarded
         print(f'Processing line {y}...')
 
-        P_ = form_P_(dert__[:, y].T)      # horizontal clustering
-        P_ = scan_P_(P_, stack_, frame)   # vertical clustering, adds up_forks per P and down_fork_cnt per stack
+        P_ = form_P_(dert__[:, y].T)  # horizontal clustering
+        P_ = scan_P_(P_, stack_, frame)  # vertical clustering, adds up_forks per P and down_fork_cnt per stack
         stack_ = form_stack_(y, P_, frame)
 
     while stack_:  # frame ends, last-line stacks are merged into their blobs:
         form_blob(stack_.popleft(), frame)
 
     return frame  # frame of blobs
+
 
 ''' 
 Parameterized connectivity clustering functions below:
@@ -88,17 +86,17 @@ Parameterized connectivity clustering functions below:
 - form_stack combines these overlapping Ps into vertical stacks of Ps, with 1 up_P to 1 down_P
 - form_blob merges terminated or forking stacks into blob, removes redundant representations of the same blob 
   by multiple forked P stacks, then checks for blob termination and merger into whole-frame representation.
-  
+
 dert: tuple of derivatives per pixel, initially (p, dy, dx, g, i), will be extended in intra_blob
 Dert: params of composite structures (P, stack, blob): summed dert params + dimensions: vertical Ly and area S
 '''
+
 
 def form_P_(dert__):  # horizontal clustering and summation of dert params into P params, per row of a frame
     # P is a segment of same-sign derts in horizontal slice of a blob
 
     P_ = deque()  # row of Ps
-    # need to add idx, idy as dert values, or add a flag to comp_g for recognize the first call
-    I, G, Dy, Dx, L, x0, = *dert__[0], 1, 0  # initialize P params with 1st dert params
+    I, G, Dy, Dx, L, x0 = *dert__[0], 1, 0  # initialize P params with 1st dert params
     G = int(G) - ave
     _s = G > 0  # sign
     for x, (p, g, dy, dx) in enumerate(dert__[1:], start=1):
@@ -138,16 +136,16 @@ def scan_P_(P_, stack_, frame):  # merge P into higher-row stack of Ps which hav
 
     if P_ and stack_:  # if both input row and higher row have any Ps / _Ps left
 
-        P = P_.popleft()          # load left-most (lowest-x) input-row P
+        P = P_.popleft()  # load left-most (lowest-x) input-row P
         stack = stack_.popleft()  # higher-row stacks
-        _P = stack['Py_'][-1]     # last element of each stack is higher-row P
-        up_fork_ = []             # list of same-sign x-overlapping _Ps per P
+        _P = stack['Py_'][-1]  # last element of each stack is higher-row P
+        up_fork_ = []  # list of same-sign x-overlapping _Ps per P
 
         while True:  # while both P_ and stack_ are not empty
 
-            x0 = P['x0']         # first x in P
-            xn = x0 + P['L']     # first x in next P
-            _x0 = _P['x0']       # first x in _P
+            x0 = P['x0']  # first x in P
+            xn = x0 + P['L']  # first x in next P
+            _x0 = _P['x0']  # first x in _P
             _xn = _x0 + _P['L']  # first x in next _P
 
             if (P['sign'] == stack['sign']
@@ -214,7 +212,7 @@ def form_stack_(y, P_, frame):  # Convert or merge every P into its stack of Ps,
 
                 if len(up_fork_) > 1:  # merge blobs of all up_forks
                     if up_fork_[0]['down_fork_cnt'] == 1:  # up_fork is not terminated
-                        form_blob(up_fork_[0], frame)      # merge stack of 1st up_fork into its blob
+                        form_blob(up_fork_[0], frame)  # merge stack of 1st up_fork into its blob
 
                     for up_fork in up_fork_[1:len(up_fork_)]:  # merge blobs of other up_forks into blob of 1st up_fork
                         if up_fork['down_fork_cnt'] == 1:
@@ -286,11 +284,32 @@ def form_blob(stack, frame):  # increment blob with terminated stack, check for 
 
         frame['blob__'].append(blob)
 
+
 # -----------------------------------------------------------------------------
 # Utilities
 
 def accum_Dert(Dert: dict, **params) -> None:
     Dert.update({param: Dert[param] + value for param, value in params.items()})
+
+
+def convert_dert(blob):  # Update blob dert with new param
+
+    new_dert__ = np.zeros((7, blob['dert__'].shape[1], blob['dert__'].shape[2]))  # initialize with 0
+    new_dert__ = ma.array(new_dert__, mask=True)  # create masked array
+    new_dert__.mask = blob['dert__'][0].mask
+
+    new_dert__[0] = blob['dert__'][0]  # i
+    new_dert__[1] = 0  # idy
+    new_dert__[2] = 0  # idx
+    new_dert__[3] = blob['dert__'][1]  # g
+    new_dert__[4] = blob['dert__'][2]  # dy
+    new_dert__[5] = blob['dert__'][3]  # dx
+    new_dert__[6] = 0  # m
+
+    blob['dert__'] = new_dert__.copy()
+
+    return blob
+
 
 # -----------------------------------------------------------------------------
 # Main
@@ -306,71 +325,47 @@ if __name__ == '__main__':
     start_time = time()
     frame = image_to_blobs(image)
 
-    intra = 0
+    intra = 1
     if intra:  # Tentative call to intra_blob, omit for testing frame_blobs:
 
-        from CogAlg.frame_2D_alg.intra_blob_draft import *
+        from intra_blob import *
+
         deep_frame = frame, frame
-        bcount=0
+        bcount = 0
         deep_blob_i_ = []
         deep_layers = []
         layer_count = 0
 
         for blob in frame['blob__']:
             bcount += 1
-#            print('Processing blob number ' + str(bcount))
-#            blob.update({'fcr': 0, 'fig': 0, 'rdn': 0, 'rng': 1, 'ls': 0, 'sub_layers': []})
+            # print('Processing blob number ' + str(bcount))
+            # blob.update({'fcr': 0, 'fig': 0, 'rdn': 0, 'rng': 1, 'ls': 0, 'sub_layers': []})
 
             if blob['sign']:
-                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20 and blob['dert__'].shape[1] > 4 and blob['dert__'].shape[2] > 4:
+                if blob['Dert']['G'] > aveB and blob['Dert']['S'] > 20 and blob['dert__'].shape[1] > 4 and \
+                        blob['dert__'].shape[2] > 4:
+                    blob = convert_dert(blob)
 
-                    new_dert__ = np.zeros((7, blob['dert__'].shape[1], blob['dert__'].shape[2]))
-                    mask = blob['dert__'][0].mask
-
-                    new_dert__[0] = blob['dert__'][0]  # i
-                    new_dert__[1] = 0; new_dert__[1].mask = mask  # idy
-                    new_dert__[2] = 0; new_dert__[2].mask = mask  # idx
-                    new_dert__[3] = blob['dert__'][1]  # g
-                    new_dert__[4] = blob['dert__'][2]  # dy
-                    new_dert__[5] = blob['dert__'][3]  # dx
-                    new_dert__[6] = 0; new_dert__[6].mask = mask  # m
-
-                    blob['dert__'] = new_dert__.copy()
-                    '''
-                    or:
-                    for (p, dy, dx, g), i in enumerate( blob['dert__'] ):
-                        blob['dert__'][i] = p, 0, 0, g, dy, dx, 0  # idt, idx, m = 0
-                    '''
                     deep_layers.append(intra_blob(blob, rdn=1, rng=.0, fig=0, fcr=0))  # +G blob' dert__' comp_g
-                    layer_count+=1
+                    layer_count += 1
 
-            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 6 and blob['dert__'].shape[1] > 4 and blob['dert__'].shape[2] > 4:
+            elif -blob['Dert']['G'] > aveB and blob['Dert']['S'] > 6 and blob['dert__'].shape[1] > 4 and \
+                    blob['dert__'].shape[2] > 4:
 
-                new_dert__ = np.zeros((7, blob['dert__'].shape[1], blob['dert__'].shape[2]))
-                mask = blob['dert__'][0].mask
+                blob = convert_dert(blob)
 
-                new_dert__[0] = blob['dert__'][0]  # i
-                new_dert__[1] = 0; new_dert__[1].mask = mask  # idy
-                new_dert__[2] = 0; new_dert__[2].mask = mask  # idx
-                new_dert__[3] = blob['dert__'][1]  # g
-                new_dert__[4] = blob['dert__'][2]  # dy
-                new_dert__[5] = blob['dert__'][3]  # dx
-                new_dert__[6] = 0; new_dert__[6].mask = mask  # m
-
-                blob['dert__'] = new_dert__.copy()
-
-                deep_layers.append(intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1))  # -G blob' dert__' comp_r in 3x3 kernels
-                layer_count+=1
+                deep_layers.append(
+                    intra_blob(blob, rdn=1, rng=1, fig=0, fcr=1))  # -G blob' dert__' comp_r in 3x3 kernels
+                layer_count += 1
 
             if len(deep_layers) > 0:
-                if len(deep_layers[layer_count-1]) > 2:
+                if len(deep_layers[layer_count - 1]) > 2:
                     deep_blob_i_.append(bcount)  # indices of blobs with deep layers
-
 
     end_time = time() - start_time
     print(end_time)
 
-    # DEBUG -------------------------------------------------------------------
+# DEBUG -------------------------------------------------------------------
 
 '''
     imwrite("images/gblobs.bmp",
@@ -380,4 +375,4 @@ if __name__ == '__main__':
                              0: BLACK
                          }))
 '''
-    # END DEBUG ---------------------------------------------------------------
+# END DEBUG ---------------------------------------------------------------
